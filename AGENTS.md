@@ -6,23 +6,23 @@ Este fichero orienta a los agentes de código (Codex, Claude Code, etc.) que tra
 
 ApiTUI es un cliente HTTP interactivo para terminal (estilo Postman, con estética Turbo Vision) en C#/.NET 10 con [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui). Es el Trabajo Fin de Máster (TFM) del Máster de Desarrollo con IA de BIG school; los requisitos de entrega están en `Docs/Documentacion-TFM.md`.
 
-**Estado actual:** solo hay documentación (`README.md`, `Docs/`, `LICENSE`). Todavía no existe solución, proyectos ni tests. El README describe el diseño *previsto*; cuando se implemente algo que difiera, actualiza el README para que refleje lo real.
+**Estado actual:** existe la solución `ApiTUI/ApiTUI.slnx`, una consola .NET 10 con Generic Host y un proyecto de tests con una prueba vacía. La consola imprime «Hello, World!»; la TUI y las capas aún no están implementadas. El README distingue el estado actual del diseño previsto.
 
 La documentación y el README están en español; mantén ese idioma en la documentación del proyecto.
 
 ## Comandos
 
-Previstos (válidos una vez creada la solución `ApiTUI.sln`):
+Desde la raíz del repositorio:
 
 ```bash
-dotnet restore
-dotnet build --configuration Release
-dotnet run --project src/ApiTUI
-dotnet test                                                   # todos los tests
-dotnet test tests/ApiTUI.Domain.Tests --filter "FullyQualifiedName~NombreDelTest"   # un test concreto
+dotnet restore ApiTUI/ApiTUI.slnx
+dotnet build ApiTUI/ApiTUI.slnx --configuration Release
+dotnet run --project ApiTUI/ApiTUI
+dotnet test ApiTUI/ApiTUI.slnx
+dotnet test ApiTUI/tests/ApiTUI.Domain.Tests --filter "FullyQualifiedName~NombreDelTest"
 
 # Publicación Native AOT (un RID por publicación: win-x64, linux-x64, linux-arm64, osx-arm64, osx-x64)
-dotnet publish src/ApiTUI/ApiTUI.csproj -c Release -r linux-x64 --self-contained true \
+dotnet publish ApiTUI/ApiTUI/ApiTUI.csproj -c Release -r linux-x64 --self-contained true \
   -p:PublishAot=true -p:PublishSingleFile=true -o ./publish/linux-x64
 
 # Docker (la TUI exige terminal interactiva: -it obligatorio)
@@ -31,6 +31,8 @@ docker run --rm -it -v "${PWD}/apitui-data:/data" apitui:latest
 ```
 
 ## Arquitectura prevista
+
+El composition root actual es `ApiTUI/ApiTUI/Program.cs` (Generic Host). La consola registra sus servicios mediante `AddApiTui()`; cada capa incorporará su método `AddXxx()` cuando exista.
 
 Capas separadas para que HTTP y persistencia no se acoplen a las vistas de Terminal.Gui:
 

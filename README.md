@@ -4,7 +4,7 @@ Cliente HTTP interactivo para terminal, desarrollado en .NET con [Terminal.Gui](
 
 Las colecciones y peticiones se organizarán en una jerarquía de carpetas y se guardarán como ficheros JSON. El proyecto está planteado para publicarse como ejecutable nativo mediante Native AOT y como imagen Docker.
 
-> **Estado del proyecto:** en desarrollo. Las funcionalidades, opciones de línea de comandos y rutas de este documento describen el diseño previsto y podrán cambiar durante la implementación.
+> **Estado del proyecto:** la consola .NET 10 arranca con Generic Host, resuelve `ApiTuiApp` mediante DI, imprime «Hello, World!» y termina. Los proveedores de logging están desactivados para reservar la consola a la futura TUI. Las funcionalidades HTTP, la interfaz y la persistencia siguen pendientes.
 
 ## Objetivos
 
@@ -18,7 +18,8 @@ Las colecciones y peticiones se organizarán en una jerarquía de carpetas y se 
 
 | Tecnología | Uso |
 | --- | --- |
-| C# y .NET | Lenguaje y plataforma de desarrollo. Se propone .NET 10 como versión objetivo inicial. |
+| C# y .NET 10 | Lenguaje y plataforma de desarrollo. |
+| `Microsoft.Extensions.Hosting` | Arranque, inyección de dependencias y ciclo de vida de la consola. |
 | Terminal.Gui | Construcción de la interfaz TUI multiplataforma. |
 | `System.Text.Json` | Lectura y escritura de colecciones, peticiones y configuración JSON. |
 | Native AOT | Publicación de ejecutables nativos autocontenidos para RID compatibles. |
@@ -83,22 +84,22 @@ cd ApiTUI
 
 ### Ejecutar desde el código fuente
 
-Desde la carpeta que contiene la solución:
+Desde la raíz del repositorio:
 
 ```bash
-dotnet restore
-dotnet build --configuration Release
-dotnet run --project src/ApiTUI
+dotnet restore ApiTUI/ApiTUI.slnx
+dotnet build ApiTUI/ApiTUI.slnx --configuration Release
+dotnet run --project ApiTUI/ApiTUI
 ```
 
-La ruta del proyecto se ajustará a la estructura definitiva del repositorio.
+La ejecución actual imprime únicamente `Hello, World!` y termina.
 
 ### Publicar como Native AOT
 
 Native AOT genera un ejecutable nativo para un *Runtime Identifier* (RID) concreto. Por ejemplo, para Linux x64:
 
 ```bash
-dotnet publish src/ApiTUI/ApiTUI.csproj \
+dotnet publish ApiTUI/ApiTUI/ApiTUI.csproj \
   --configuration Release \
   --runtime linux-x64 \
   --self-contained true \
@@ -140,7 +141,11 @@ docker run --rm -it `
   apitui:latest
 ```
 
-## Estructura propuesta
+## Estructura actual y prevista
+
+La solución actual está en `ApiTUI/ApiTUI.slnx`. Contiene la consola `ApiTUI/ApiTUI` y el proyecto `ApiTUI/tests/ApiTUI.Domain.Tests`, que solo tiene una prueba vacía. `Program.cs` configura Generic Host y valida el contenedor al arrancar; `ServiceCollectionExtensions.AddApiTui()` registra `ApiTuiApp` como singleton. Terminal.Gui ya está referenciado, pero todavía no se utiliza.
+
+La separación en capas sigue prevista:
 
 ```text
 ApiTUI/
@@ -199,14 +204,16 @@ Los atajos se documentarán cuando estén definidos en la interfaz. ApiTUI se di
 
 ## Desarrollo
 
-Una vez creada la solución, los comandos habituales serán:
+Desde la raíz del repositorio:
 
 ```bash
-dotnet restore
-dotnet build --configuration Release
+dotnet restore ApiTUI/ApiTUI.slnx
+dotnet build ApiTUI/ApiTUI.slnx --configuration Release
+dotnet format ApiTUI/ApiTUI.slnx --verify-no-changes
+dotnet test ApiTUI/ApiTUI.slnx
 ```
 
-Los comandos para ejecutar pruebas, crear paquetes y generar imágenes Docker se incorporarán cuando existan los proyectos y flujos correspondientes.
+La prueba vacía actual no verifica comportamiento funcional. Los flujos de publicación siguen pendientes.
 
 ## Limitaciones previstas
 
