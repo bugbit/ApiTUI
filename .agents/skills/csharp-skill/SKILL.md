@@ -3,53 +3,57 @@ name: csharp-skill
 description: Reglas de desarrollo C# de ApiTUI y verificación final (compilación Native AOT, dotnet format y dotnet test). Úsalo al escribir o modificar código C# o tests en este repositorio, o invócalo directamente para comprobar que el código cumple las reglas.
 ---
 
-# C# development in this repository
+# Desarrollo C# en este repositorio
 
 Se puede invocar de forma individual para revisar que el código escrito (incluido el código de tests) sigue estas reglas.
 
 ## Reglas
-- Use the C# version the project sets.
-- Data without behaviour: record. Classes: sealed, unless the spec asks for inheritance.
-- Prefer composition over inheritance.
-- Do not declare a required value as nullable. Do not use the ! operator or disable warnings.
-- Every async method receives a CancellationToken and passes it on.
-- Do not use .Result, .Wait(), GetAwaiter().GetResult() or async void.
 
-Nullability:
+- Usa la versión de C# que fija el proyecto.
+- Datos sin comportamiento: `record`. Clases: `sealed`, salvo que la especificación pida herencia.
+- Prefiere la composición a la herencia.
+- Todo método asíncrono recibe un `CancellationToken` y lo propaga.
+- No uses `.Result`, `.Wait()`, `GetAwaiter().GetResult()` ni `async void`.
 
-- Do not declare as nullable (?) a value the domain considers required.
-- Do not use the ! operator to silence a nullability warning.
-- Do not disable nullability warnings, neither inline (#pragma) nor in the project (NoWarn). If you think a warning is wrong, stop and explain why.
+### Nulabilidad
 
-Design principles when reviewing or proposing a change:
+- No declares como anulable (`?`) un valor que el dominio considera obligatorio.
+- No uses el operador `!` para silenciar un aviso de nulabilidad.
+- No desactives los avisos de nulabilidad, ni en línea (`#pragma`) ni en el proyecto (`NoWarn`). Si crees que un aviso es incorrecto, detente y explica por qué.
 
-- YAGNI: every abstraction, provider, factory or configuration option must point to a requirement in the spec. If it does not, remove it or explain the requirement it serves.
-- Second real use: a reusable abstraction is justified by a second consumer that exists today, not by one that might exist.
-- KISS: prefer the solution with the fewest decisions a reader must follow to understand one read and one write. Simple still means correct: concurrency, failed writes and empty results stay covered.
-- DRY: centralise a rule only when its consumers must change together. Two identical numbers are not one rule. Two endpoints applying the same validation are.
-- In the PR, state what knowledge is shared and why its consumers evolve together.
+### Principios de diseño al revisar o proponer un cambio
 
-Usar **constructores primarios** para inyección de dependencias:
+- **YAGNI:** toda abstracción, proveedor, factoría u opción de configuración debe corresponder a un requisito de la especificación. Si no es así, elimínala o explica a qué requisito responde.
+- **Segundo uso real:** una abstracción reutilizable se justifica por un segundo consumidor que existe hoy, no por uno que podría existir.
+- **KISS:** prefiere la solución con menos decisiones que un lector deba seguir para entender una lectura y una escritura. Simple sigue significando correcto: la concurrencia, las escrituras fallidas y los resultados vacíos deben seguir cubiertos.
+- **DRY:** centraliza una regla solo cuando sus consumidores deben cambiar a la vez. Dos números idénticos no son una regla; dos endpoints que aplican la misma validación, sí.
+- En la PR, indica qué conocimiento se comparte y por qué sus consumidores evolucionan juntos.
 
-- los parámetros del constructor **nunca** se usan directamente en métodos o propiedades
-- cada dependencia se asigna a un campo `readonly` con prefijo `_`
-- solo se usa ese campo dentro del cuerpo de la clase
+### Constructores primarios
+
+Usa **constructores primarios** para la inyección de dependencias:
+
+- los parámetros del constructor **nunca** se usan directamente en métodos o propiedades;
+- cada dependencia se asigna a un campo `readonly` con prefijo `_`;
+- dentro del cuerpo de la clase solo se usa ese campo.
 
 Ejemplo correcto:
 
 ```csharp
-public sealed class TaskAppService(in ITaskRepository taskRepository)
+public interface ITaskRepository
+{
+    Task<int> GetCountAsync(CancellationToken cancellationToken);
+}
+
+public sealed class TaskFixedService(in ITaskRepository taskRepository)
 {
     private readonly ITaskRepository _taskRepository = taskRepository;
 
-    public Task<TaskItem?> GetByIdAsync(TaskId id, CancellationToken cancellationToken)
-    {
-        return _taskRepository.GetByIdAsync(id, cancellationToken);
-    }
+    public Task<int> GetCountAsync(CancellationToken cancellationToken) => Task.FromResult(1);
 }
 ```
 
-## Before you consider the task finished
+## Antes de dar la tarea por terminada
 
 Ejecuta los comandos desde la raíz del repositorio. La solución es `ApiTUI/ApiTUI.slnx`.
 
@@ -77,4 +81,4 @@ Ejecuta los comandos desde la raíz del repositorio. La solución es `ApiTUI/Api
    dotnet test ApiTUI/ApiTUI.slnx
    ```
 
-4. If anything fails, fix the cause and repeat the three checks.
+4. Si algo falla, corrige la causa y repite las tres comprobaciones.

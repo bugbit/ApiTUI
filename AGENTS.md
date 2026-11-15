@@ -60,6 +60,14 @@ Prioridad prevista para resolver la carpeta de datos: opción CLI → variable d
 - La UI debe funcionar íntegramente con teclado y adaptarse al tamaño de la terminal; los atajos deben seguir las convenciones de Terminal.Gui.
 - Las peticiones HTTP deben poder cancelarse (propaga `CancellationToken`) y los errores de conexión/configuración se muestran en la interfaz, no rompen la app.
 
+## Commits
+
+Todo el código generado por IA se commitea con la identidad `bugbitAgent`, sin cambiar la configuración global de git:
+
+```bash
+git -c user.name='bugbitAgent' -c user.email='oscar2522@gmail.com' commit -m '<mensaje>'
+```
+
 ## Requisitos de entrega del TFM
 
 El README debe mantener: descripción general, stack tecnológico, instalación y ejecución, estructura del proyecto y funcionalidades principales. También debe incluir la URL de despliegue/publicación y el enlace a las slides cuando existan.
