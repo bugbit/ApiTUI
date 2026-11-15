@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ApiTUI": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
