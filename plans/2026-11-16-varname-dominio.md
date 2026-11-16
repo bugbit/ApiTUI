@@ -1,7 +1,7 @@
 # Plan: Value object de dominio VarName
 
 Fecha: 2026-11-16
-Estado: implementado; verificaciones pendientes
+Estado: implementado
 
 ## Objetivo
 Crear el value object `VarName` que representa el nombre de una variable (de entorno/colección). Un `VarName` válido:

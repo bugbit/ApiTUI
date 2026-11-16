@@ -55,6 +55,15 @@ public sealed class VarNameTests
     }
 
     [Fact]
+    public void Create_SeveralDisallowedCharacters_ListsEachOnceInMessage()
+    {
+        var result = VarName.Create("a$b$c@");
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("'$', '@'", result.Error.Message);
+    }
+
+    [Fact]
     public void Equality_SameText_IsEqualAndFormatsAsValue()
     {
         var first = VarName.Create("baseUrl");

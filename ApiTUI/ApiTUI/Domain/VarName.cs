@@ -15,13 +15,11 @@ public sealed record VarName
             return Result<VarName>.Failure(ErrorsReasons.InvalidInput, "El nombre de la variable no puede estar vacío.");
         }
 
-        foreach (var c in value)
+        var invalidChars = value.Where(c => !IsAllowed(c)).Distinct().ToArray();
+        if (invalidChars.Length > 0)
         {
-            if (!IsAllowed(c))
-            {
-                return Result<VarName>.Failure(ErrorsReasons.InvalidInput,
-                    $"El nombre de la variable contiene el carácter no permitido '{c}'. Solo se admiten letras, dígitos, '-', '_' y '.'.");
-            }
+            return Result<VarName>.Failure(ErrorsReasons.InvalidInput,
+                $"El nombre de la variable contiene caracteres no permitidos: {string.Join(", ", invalidChars.Select(c => $"'{c}'"))}. Solo se admiten letras ASCII (a-z, A-Z), dígitos (0-9), '-', '_' y '.'.");
         }
 
         return Result<VarName>.Success(new VarName(value));
