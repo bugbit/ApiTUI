@@ -1,4 +1,11 @@
-﻿using ApiTUI;
+﻿// Punto de entrada y composition root de ApiTUI.
+// Configura el Generic Host sin proveedores de logging y con validación del contenedor DI.
+// Registra IHello y los servicios de AddApiTui(), arranca el host y ejecuta ApiTuiApp
+// con el token ApplicationStopping. Trata la cancelación como salida normal y detiene
+// el host en finally cuando termina la aplicación.
+// También declara ApiTuiJsonContext para generar la serialización JSON compatible con Native AOT.
+
+using ApiTUI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
