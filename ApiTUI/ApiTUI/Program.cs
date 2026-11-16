@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Text.Json.Serialization;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
@@ -26,3 +27,9 @@ finally
 {
     await host.StopAsync(CancellationToken.None);
 }
+
+class JsonPrueba { }
+
+[JsonSerializable(typeof(JsonPrueba))]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]
+internal partial class ApiTuiJsonContext : JsonSerializerContext;
