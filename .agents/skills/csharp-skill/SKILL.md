@@ -21,6 +21,18 @@ Se puede invocar de forma individual para revisar que el código escrito (inclui
 - No uses el operador `!` para silenciar un aviso de nulabilidad.
 - No desactives los avisos de nulabilidad, ni en línea (`#pragma`) ni en el proyecto (`NoWarn`). Si crees que un aviso es incorrecto, detente y explica por qué.
 
+### Serialización JSON
+
+El contexto de `System.Text.Json` del proyecto es `ApiTuiJsonContext` (hoy en `ApiTUI/ApiTUI/Program.cs`).
+
+- Todo tipo que se serialice o deserialice a JSON se registra con `[JsonSerializable(typeof(Tipo))]` en `ApiTuiJsonContext`.
+- Al serializar o deserializar, pasa siempre el `JsonTypeInfo` generado: `ApiTuiJsonContext.Default.Tipo`. No uses las sobrecargas sin él (`JsonSerializer.Serialize(obj)`, `JsonSerializer.Deserialize<T>(json)`), porque usan reflexión y rompen Native AOT.
+
+```csharp
+var json = JsonSerializer.Serialize(request, ApiTuiJsonContext.Default.RequestDto);
+var dto = JsonSerializer.Deserialize(json, ApiTuiJsonContext.Default.RequestDto);
+```
+
 ### Principios de diseño al revisar o proponer un cambio
 
 - **YAGNI:** toda abstracción, proveedor, factoría u opción de configuración debe corresponder a un requisito de la especificación. Si no es así, elimínala o explica a qué requisito responde.
