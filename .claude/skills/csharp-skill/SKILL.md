@@ -35,21 +35,29 @@ Usa **constructores primarios** para la inyección de dependencias:
 
 - los parámetros del constructor **nunca** se usan directamente en métodos o propiedades;
 - cada dependencia se asigna a un campo `readonly` con prefijo `_`;
-- dentro del cuerpo de la clase solo se usa ese campo.
+- dentro del cuerpo de la clase solo se usa ese campo;
+- no uses `in`, `ref` ni `out` en los parámetros del constructor: el contenedor de DI no puede resolverlos (buscaría `IHello&` en lugar de `IHello`) y con tipos referencia no aportan nada.
+
+Si el compilador emite **CS9124**, se está usando el parámetro además del campo: sustitúyelo por el campo.
 
 Ejemplo correcto:
 
 ```csharp
-public interface ITaskRepository
+public interface IHello
 {
-    Task<int> GetCountAsync(CancellationToken cancellationToken);
+    void SayHello();
 }
 
-public sealed class TaskFixedService(in ITaskRepository taskRepository)
+public sealed class ApiTuiApp(IHello hello)
 {
-    private readonly ITaskRepository _taskRepository = taskRepository;
+    private readonly IHello _hello = hello;
 
-    public Task<int> GetCountAsync(CancellationToken cancellationToken) => Task.FromResult(1);
+    public Task RunAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _hello.SayHello();
+        return Task.CompletedTask;
+    }
 }
 ```
 

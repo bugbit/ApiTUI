@@ -7,6 +7,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
 builder.ConfigureContainer(new DefaultServiceProviderFactory(
     new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true }));
+builder.Services.AddSingleton<IHello, Hello>();
 builder.Services.AddApiTui();
 
 using var host = builder.Build();
