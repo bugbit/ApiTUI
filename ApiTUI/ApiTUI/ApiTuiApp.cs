@@ -5,7 +5,7 @@ public interface IHello
     void SayHello();
 }
 
-public sealed class Hello : IHello
+public sealed class Hello() : IHello
 {
     public void SayHello()
     {

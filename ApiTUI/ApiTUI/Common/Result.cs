@@ -30,4 +30,5 @@ public sealed class Result<T>
     }
 
     public static implicit operator Result<T>(Error error) => Failure(error);
+    public static implicit operator Result<T>(T value) => Success(value);
 }
