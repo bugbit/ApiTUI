@@ -6,7 +6,7 @@ Este fichero orienta a los agentes de código (Codex, Claude Code, etc.) que tra
 
 ApiTUI es un cliente HTTP interactivo para terminal (estilo Postman, con estética Turbo Vision) en C#/.NET 10 con [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui). Es el Trabajo Fin de Máster (TFM) del Máster de Desarrollo con IA de BIG school; los requisitos de entrega están en `Docs/Documentacion-TFM.md`.
 
-**Estado actual:** existe la solución `ApiTUI/ApiTUI.slnx`, una consola .NET 10 con Generic Host y un proyecto de tests con una prueba vacía. La consola imprime «Hello, World!»; la TUI y las capas aún no están implementadas. El README distingue el estado actual del diseño previsto.
+**Estado actual:** existe la solución `ApiTUI/ApiTUI.slnx`, una consola .NET 10 con Generic Host y un proyecto de tests con una prueba vacía. La consola imprime un saludo traducido (es/en); la TUI y las capas aún no están implementadas. El README distingue el estado actual del diseño previsto.
 
 La documentación y el README están en español; mantén ese idioma en la documentación del proyecto.
 

@@ -14,14 +14,14 @@ public sealed record HeaderName
     {
         if (string.IsNullOrEmpty(value))
         {
-            return Result<HeaderName>.Failure(ErrorsReasons.InvalidInput, "El nombre de la cabecera no puede estar vacío.");
+            return Result<HeaderName>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.HeaderNameEmpty);
         }
 
         var invalidChars = value.Where(c => !IsTokenChar(c)).Distinct().ToArray();
         if (invalidChars.Length > 0)
         {
             return Result<HeaderName>.Failure(ErrorsReasons.InvalidInput,
-                $"El nombre de la cabecera contiene caracteres no permitidos: {Describe(invalidChars)}. Solo se admiten letras ASCII, dígitos y !#$%&'*+-.^_`|~.");
+                DomainErrorCodes.HeaderNameInvalidChars, Describe(invalidChars));
         }
 
         return Result<HeaderName>.Success(new HeaderName(value));

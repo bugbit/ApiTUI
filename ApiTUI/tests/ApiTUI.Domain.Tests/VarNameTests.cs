@@ -32,6 +32,7 @@ public sealed class VarNameTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.VarNameEmpty, result.Error.Code);
     }
 
     [Theory]
@@ -52,6 +53,7 @@ public sealed class VarNameTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.VarNameInvalidChars, result.Error.Code);
     }
 
     [Fact]
@@ -60,7 +62,8 @@ public sealed class VarNameTests
         var result = VarName.Create("a$b$c@");
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("'$', '@'", result.Error.Message);
+        Assert.Equal(DomainErrorCodes.VarNameInvalidChars, result.Error.Code);
+        Assert.Equal("'$', '@'", Assert.Single(result.Error.Args));
     }
 
     [Fact]

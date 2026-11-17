@@ -58,6 +58,7 @@ public sealed class HeaderValueTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.HeaderValueNameRequired, result.Error.Code);
     }
 
     [Fact]

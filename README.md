@@ -4,7 +4,7 @@ Cliente HTTP interactivo para terminal, desarrollado en .NET con [Terminal.Gui](
 
 Las colecciones y peticiones se organizarán en una jerarquía de carpetas y se guardarán como ficheros JSON. El proyecto está planteado para publicarse como ejecutable nativo mediante Native AOT y como imagen Docker.
 
-> **Estado del proyecto:** la consola .NET 10 arranca con Generic Host, resuelve `ApiTuiApp` mediante DI, imprime «Hello, World!» y termina. Los proveedores de logging están desactivados para reservar la consola a la futura TUI. Las funcionalidades HTTP, la interfaz y la persistencia siguen pendientes.
+> **Estado del proyecto:** la consola .NET 10 arranca con Generic Host, resuelve `ApiTuiApp` mediante DI, imprime un saludo traducido («¡Hola, mundo!» o «Hello, World!») y termina. Los proveedores de logging están desactivados para reservar la consola a la futura TUI. Las funcionalidades HTTP, la interfaz y la persistencia siguen pendientes.
 
 ## Objetivos
 
@@ -92,7 +92,7 @@ dotnet build ApiTUI/ApiTUI.slnx --configuration Release
 dotnet run --project ApiTUI/ApiTUI
 ```
 
-La ejecución actual imprime únicamente `Hello, World!` y termina.
+La ejecución actual imprime únicamente el saludo (`¡Hola, mundo!` en español, `Hello, World!` con `--Language en`) y termina.
 
 ### Publicar como Native AOT
 
@@ -189,6 +189,18 @@ data/
 Cada fichero representará una entidad o configuración. La estructura definitiva y el esquema JSON se documentarán cuando se implementen los modelos y la migración de datos.
 
 ## Configuración
+
+Los mensajes de error del dominio y los textos de la interfaz se traducen al español (`es`, por defecto) o al inglés (`en`) mediante la clase `Messages`. Hoy solo el saludo de la consola usa un texto de interfaz; los errores traducidos aún no se muestran en pantalla.
+
+Para elegir el idioma:
+
+```bash
+dotnet run --project ApiTUI/ApiTUI -- --Language en
+```
+
+También se puede definir la variable de entorno `DOTNET_Language=en`. La opción `--Language` tiene prioridad sobre esa variable. Se aceptan variantes como `en-US`; un idioma desconocido usa español. Las traducciones están en `ApiTUI/ApiTUI/Localization/Messages.resx` (español, recurso neutro) y `Messages.en.resx` (inglés). Usan `ResourceManager`, el mismo mecanismo de recursos que Terminal.Gui. Añadir un idioma requiere crear `Messages.<idioma>.resx` y recompilar.
+
+La cultura de interfaz se alinea con el idioma elegido. Terminal.Gui no incluye traducciones propias al español en la versión actual, así que sus botones y diálogos usarán inglés al elegir `es`. El formato de los mensajes sigue siendo invariante. Se mantiene `InvariantGlobalization=true` y se permite crear culturas por nombre con `PredefinedCulturesOnly=false`.
 
 La carpeta de datos deberá poder configurarse para usar ubicaciones distintas en cada sistema operativo o para montar un volumen de Docker. La prioridad prevista es:
 

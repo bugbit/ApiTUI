@@ -19,7 +19,7 @@ public sealed record HeaderValue
     {
         if (name is null)
         {
-            return Result<HeaderValue>.Failure(ErrorsReasons.InvalidInput, "El nombre de la cabecera es obligatorio.");
+            return Result<HeaderValue>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.HeaderValueNameRequired);
         }
 
         return Result<HeaderValue>.Success(new HeaderValue(name, value ?? new StringWithVars(null), enabled));

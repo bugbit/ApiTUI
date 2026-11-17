@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Identifier.Required" xml:space="preserve">
+    <value>The {0} identifier cannot be null or empty.</value>
+  </data>
+  <data name="ApiRequest.IdRequired" xml:space="preserve">
+    <value>The request identifier is required.</value>
+  </data>
+  <data name="ApiRequest.LocationRequired" xml:space="preserve">
+    <value>The collection or folder identifier is required.</value>
+  </data>
+  <data name="ApiRequest.NameEmpty" xml:space="preserve">
+    <value>The request name cannot be empty.</value>
+  </data>
+  <data name="ApiRequest.NameInvalidChars" xml:space="preserve">
+    <value>The request name cannot contain control characters or {0}.</value>
+  </data>
+  <data name="ApiRequest.NameEndsWithDot" xml:space="preserve">
+    <value>The request name cannot end with a dot.</value>
+  </data>
+  <data name="ApiRequest.NameReserved" xml:space="preserve">
+    <value>The request name cannot be a reserved system name ({0}).</value>
+  </data>
+  <data name="ApiRequest.MethodInvalid" xml:space="preserve">
+    <value>The request HTTP method is invalid.</value>
+  </data>
+  <data name="ApiRequest.HeaderNull" xml:space="preserve">
+    <value>The request headers cannot contain null entries.</value>
+  </data>
+  <data name="HeaderName.Empty" xml:space="preserve">
+    <value>The header name cannot be empty.</value>
+  </data>
+  <data name="HeaderName.InvalidChars" xml:space="preserve">
+    <value>The header name contains invalid characters: {0}. Only ASCII letters, digits and !#$%&amp;'*+-.^_`|~ are allowed.</value>
+  </data>
+  <data name="HeaderValue.NameRequired" xml:space="preserve">
+    <value>The header name is required.</value>
+  </data>
+  <data name="VarName.Empty" xml:space="preserve">
+    <value>The variable name cannot be empty.</value>
+  </data>
+  <data name="VarName.InvalidChars" xml:space="preserve">
+    <value>The variable name contains invalid characters: {0}. Only ASCII letters (a-z, A-Z), digits (0-9), '-', '_' and '.' are allowed.</value>
+  </data>
+  <data name="VarValue.NameRequired" xml:space="preserve">
+    <value>The variable name is required.</value>
+  </data>
+  <data name="Ui.HelloWorld" xml:space="preserve">
+    <value>Hello, World!</value>
+  </data>
+</root>

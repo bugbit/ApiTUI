@@ -122,5 +122,5 @@ Desde la raíz del repo:
 
 - `ApiRequest` implementa `IEquatable<ApiRequest>` con igualdad por `Id` (también `==`, `!=` y `GetHashCode`), como corresponde a una entidad. Sustituye a la igualdad por referencia.
 - El nombre se valida como nombre de fichero válido en todos los SO soportados (se usa en `requests/<Petición>.json`): sin caracteres de control ni `<>:"/\|?*`, sin punto final y sin nombres reservados de Windows (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`, también con extensión).
-- Pendiente: unificar el idioma de los mensajes de error (`Identifier.Create` en inglés, `ApiRequest` en español).
+- Idioma de mensajes resuelto mediante `plans/2026-11-17-mensajes-dominio-multiidioma.md`: el dominio devuelve códigos y argumentos; la presentación obtiene los textos de catálogos JSON en español e inglés.
 - Verificado: 199 tests superados, formato correcto y Native AOT `win-x64` sin avisos.

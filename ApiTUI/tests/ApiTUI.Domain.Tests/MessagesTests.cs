@@ -1,0 +1,227 @@
+using System.Collections;
+using System.Globalization;
+using System.Reflection;
+using System.Resources;
+using System.Text;
+using System.Text.RegularExpressions;
+using ApiTUI.Common;
+using ApiTUI.Localization;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
+namespace ApiTUI.Domain.Tests;
+
+[Collection("Language configuration")]
+public sealed class MessagesTests
+{
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public void Catalog_ContainsExactlyDomainErrorCodesAndUiKeys(string language)
+    {
+        var codes = new[] { typeof(DomainErrorCodes), typeof(UiMessageKeys) }
+            .SelectMany(type => type.GetFields(BindingFlags.Public | BindingFlags.Static))
+            .Where(field => field.IsLiteral && field.FieldType == typeof(string))
+            .Select(field => Assert.IsType<string>(field.GetRawConstantValue())).ToArray();
+        var catalog = Catalog(language);
+
+        Assert.Equal(codes.Length, codes.Distinct().Count());
+        Assert.Equal(codes.Order(), catalog.Keys.Order());
+        Assert.All(catalog.Values, template => Assert.False(string.IsNullOrWhiteSpace(template)));
+    }
+
+    [Fact]
+    public void Catalogs_PlaceholdersMatchDomainArgumentsAndFormatSuccessfully()
+    {
+        var spanish = Catalog("es");
+        var english = Catalog("en");
+        string[] withArgument =
+        [
+            DomainErrorCodes.IdentifierRequired, DomainErrorCodes.ApiRequestNameInvalidChars,
+            DomainErrorCodes.ApiRequestNameReserved, DomainErrorCodes.HeaderNameInvalidChars,
+            DomainErrorCodes.VarNameInvalidChars,
+        ];
+
+        foreach (var (code, template) in spanish)
+        {
+            var spanishFormat = CompositeFormat.Parse(template);
+            var englishFormat = CompositeFormat.Parse(english[code]);
+            string[] expectedMarkers = withArgument.Contains(code) ? ["0"] : [];
+            Assert.Equal(expectedMarkers, Markers(template));
+            Assert.Equal(expectedMarkers, Markers(english[code]));
+            Assert.Equal(expectedMarkers.Length, spanishFormat.MinimumArgumentCount);
+            Assert.Equal(expectedMarkers.Length, englishFormat.MinimumArgumentCount);
+            var args = withArgument.Contains(code) ? new object[] { "sample" } : [];
+            Assert.NotEmpty(new Messages("es").Format(new Error(ErrorsReasons.InvalidInput, code, args)));
+            Assert.NotEmpty(new Messages("en").Format(new Error(ErrorsReasons.InvalidInput, code, args)));
+        }
+    }
+
+    [Theory]
+    [InlineData("es", "es")]
+    [InlineData("en", "en")]
+    [InlineData("en-US", "en")]
+    [InlineData(" EN-us ", "en")]
+    [InlineData("es-ES", "es")]
+    [InlineData("fr", "es")]
+    [InlineData("!!", "es")]
+    [InlineData(null, "es")]
+    [InlineData("", "es")]
+    [InlineData("  ", "es")]
+    public void Constructor_NormalizesLanguageAndFallsBackToSpanish(string? language, string expected)
+    {
+        var messages = new Messages(language);
+
+        Assert.Equal(expected, messages.Language);
+    }
+
+    [Theory]
+    [InlineData("en", "en")]
+    [InlineData("en-US", "en")]
+    [InlineData("es", "")]
+    [InlineData("fr", "")]
+    [InlineData("!!", "")]
+    public void Constructor_UsesSatelliteCultureOrInvariantNeutralCulture(string language, string expectedCulture)
+    {
+        Assert.Equal(expectedCulture, new Messages(language).Culture.Name);
+    }
+
+    [Theory]
+    [InlineData("es", "El nombre de la petición no puede ser un nombre reservado del sistema (CON).")]
+    [InlineData("en", "The request name cannot be a reserved system name (CON).")]
+    [InlineData("fr", "El nombre de la petición no puede ser un nombre reservado del sistema (CON).")]
+    public void Format_WithArguments_UsesSelectedLanguage(string language, string expected)
+    {
+        var error = new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestNameReserved, "CON");
+
+        Assert.Equal(expected, new Messages(language).Format(error));
+    }
+
+    [Theory]
+    [InlineData("es", "¡Hola, mundo!")]
+    [InlineData("en", "Hello, World!")]
+    [InlineData("fr", "¡Hola, mundo!")]
+    public void Get_UiKey_UsesSelectedLanguage(string language, string expected)
+    {
+        Assert.Equal(expected, new Messages(language).Get(UiMessageKeys.HelloWorld));
+    }
+
+    [Theory]
+    [InlineData("es", "¡Hola, mundo!")]
+    [InlineData("en", "Hello, World!")]
+    public void Hello_SayHello_WritesTranslatedGreeting(string language, string expected)
+    {
+        var originalOut = Console.Out;
+        using var output = new StringWriter();
+        try
+        {
+            Console.SetOut(output);
+
+            new Hello(new Messages(language)).SayHello();
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        Assert.Equal(expected + Environment.NewLine, output.ToString());
+    }
+
+    [Fact]
+    public void Get_UnknownKey_ReturnsKey()
+    {
+        Assert.Equal("Ui.Unknown", new Messages("en").Get("Ui.Unknown"));
+    }
+
+    [Theory]
+    [InlineData("es")]
+    [InlineData("en")]
+    public void Format_UnknownCode_ReturnsCode(string language)
+    {
+        var error = new Error(ErrorsReasons.InvalidInput, "Unknown.Code", "ignored");
+
+        Assert.Equal("Unknown.Code", new Messages(language).Format(error));
+    }
+
+    [Fact]
+    public void Format_UsesInvariantCulture()
+    {
+        var original = CultureInfo.CurrentCulture;
+        var commaCulture = (CultureInfo)CultureInfo.InvariantCulture.Clone();
+        commaCulture.NumberFormat.NumberDecimalSeparator = ",";
+        try
+        {
+            CultureInfo.CurrentCulture = commaCulture;
+            var error = new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestNameReserved, 1.5);
+
+            Assert.Equal("The request name cannot be a reserved system name (1.5).", new Messages("en").Format(error));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Theory]
+    [InlineData(null, "en")]
+    [InlineData("es", "es")]
+    public void GenericHost_UsesEnvironmentLanguageAndCommandLineTakesPrecedence(string? commandLineLanguage, string expected)
+    {
+        var originalPrefixed = Environment.GetEnvironmentVariable("DOTNET_Language");
+        var originalUnprefixed = Environment.GetEnvironmentVariable("Language");
+        try
+        {
+            Environment.SetEnvironmentVariable("DOTNET_Language", "en");
+            Environment.SetEnvironmentVariable("Language", null);
+            string[] args = commandLineLanguage is null ? [] : ["--Language", commandLineLanguage];
+            var builder = Host.CreateApplicationBuilder(args);
+            builder.Logging.ClearProviders();
+            builder.Services.AddSingleton<IHello, Hello>();
+            builder.Services.AddApiTui(builder.Configuration["Language"]);
+            using var host = builder.Build();
+
+            var messages = host.Services.GetRequiredService<Messages>();
+            Assert.Equal(expected, messages.Language);
+            Assert.Same(messages, host.Services.GetRequiredService<Messages>());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DOTNET_Language", originalPrefixed);
+            Environment.SetEnvironmentVariable("Language", originalUnprefixed);
+        }
+    }
+
+    [Fact]
+    public void ErrorAndFailure_PreserveCodeAndArgumentsWithoutSharingMutableArray()
+    {
+        object[] args = ["CON"];
+        var result = Result<string>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestNameReserved, args);
+        args[0] = "changed";
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiRequestNameReserved, result.Error.Code);
+        Assert.Equal("CON", Assert.Single(result.Error.Args));
+        var converted = Result<string>.Failure(result.Error);
+        Assert.Same(result.Error, converted.Error);
+        Result<string> implicitFailure = result.Error;
+        Assert.Same(result.Error, implicitFailure.Error);
+    }
+
+    private static string[] Markers(string template) => Regex.Matches(template, @"(?<!\{)\{(\d+)[^{}]*\}(?!\})")
+        .Select(match => match.Groups[1].Value).Distinct().Order().ToArray();
+
+    private static Dictionary<string, string> Catalog(string language)
+    {
+        var resources = new ResourceManager("ApiTUI.Localization.Messages", typeof(Messages).Assembly);
+        var culture = language == "es" ? CultureInfo.InvariantCulture : CultureInfo.GetCultureInfo(language);
+        var resourceSet = resources.GetResourceSet(culture, createIfNotExists: true, tryParents: false);
+        Assert.NotNull(resourceSet);
+        return resourceSet.Cast<DictionaryEntry>().ToDictionary(entry => Assert.IsType<string>(entry.Key),
+            entry => Assert.IsType<string>(entry.Value));
+    }
+}
+
+[CollectionDefinition("Language configuration", DisableParallelization = true)]
+public sealed class LanguageConfigurationCollection;

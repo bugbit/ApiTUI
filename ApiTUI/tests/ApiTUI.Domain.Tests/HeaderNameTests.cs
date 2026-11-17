@@ -43,6 +43,8 @@ public sealed class HeaderNameTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(string.IsNullOrEmpty(value) ? DomainErrorCodes.HeaderNameEmpty : DomainErrorCodes.HeaderNameInvalidChars,
+            result.Error.Code);
     }
 
     [Fact]
@@ -64,9 +66,8 @@ public sealed class HeaderNameTests
         var result = HeaderName.Create("a@b@c/");
 
         Assert.False(result.IsSuccess);
-        Assert.Contains("'@', '/'", result.Error.Message);
-        Assert.Equal(1, result.Error.Message.Count(c => c == '@'));
-        Assert.Equal(1, result.Error.Message.Count(c => c == '/'));
+        Assert.Equal(DomainErrorCodes.HeaderNameInvalidChars, result.Error.Code);
+        Assert.Equal("'@', '/'", Assert.Single(result.Error.Args));
     }
 
     [Theory]
@@ -84,8 +85,10 @@ public sealed class HeaderNameTests
         var result = HeaderName.Create("a" + character + "b");
 
         Assert.False(result.IsSuccess);
-        Assert.Contains(description, result.Error.Message);
-        Assert.DoesNotContain(result.Error.Message, c => char.IsControl(c) || c == '\u2028');
+        Assert.Equal(DomainErrorCodes.HeaderNameInvalidChars, result.Error.Code);
+        var argument = Assert.IsType<string>(Assert.Single(result.Error.Args));
+        Assert.Equal(description, argument);
+        Assert.DoesNotContain(argument, c => char.IsControl(c) || c == '\u2028');
     }
 
     [Fact]

@@ -1,3 +1,5 @@
+using ApiTUI.Localization;
+
 namespace ApiTUI;
 
 public interface IHello
@@ -5,11 +7,13 @@ public interface IHello
     void SayHello();
 }
 
-public sealed class Hello() : IHello
+public sealed class Hello(Messages messages) : IHello
 {
+    private readonly Messages _messages = messages;
+
     public void SayHello()
     {
-        Console.WriteLine("Hello, World!");
+        Console.WriteLine(_messages.Get(UiMessageKeys.HelloWorld));
     }
 }
 

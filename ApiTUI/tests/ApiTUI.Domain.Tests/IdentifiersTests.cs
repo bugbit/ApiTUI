@@ -49,7 +49,8 @@ public sealed class IdentifiersTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
-        Assert.Contains(nameof(ApiRequestId), result.Error.Message);
+        Assert.Equal(DomainErrorCodes.IdentifierRequired, result.Error.Code);
+        Assert.Equal(nameof(ApiRequestId), Assert.Single(result.Error.Args));
     }
 
     [Theory]
@@ -63,7 +64,8 @@ public sealed class IdentifiersTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
-        Assert.Contains(nameof(ApiCollectionId), result.Error.Message);
+        Assert.Equal(DomainErrorCodes.IdentifierRequired, result.Error.Code);
+        Assert.Equal(nameof(ApiCollectionId), Assert.Single(result.Error.Args));
     }
 
     [Fact]

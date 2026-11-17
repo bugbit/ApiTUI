@@ -19,7 +19,7 @@ public sealed record VarValue
     {
         if (name is null)
         {
-            return Result<VarValue>.Failure(ErrorsReasons.InvalidInput, "El nombre de la variable es obligatorio.");
+            return Result<VarValue>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.VarValueNameRequired);
         }
 
         return Result<VarValue>.Success(new VarValue(name, value ?? new StringWithVars(null), enabled));

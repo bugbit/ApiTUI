@@ -97,6 +97,7 @@ public sealed class ApiRequestTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiRequestNameEmpty, result.Error.Code);
     }
 
     [Fact]
@@ -106,6 +107,7 @@ public sealed class ApiRequestTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiRequestNameEmpty, result.Error.Code);
     }
 
     [Theory]
@@ -130,6 +132,7 @@ public sealed class ApiRequestTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiRequestMethodInvalid, result.Error.Code);
     }
 
     [Theory]
@@ -143,7 +146,8 @@ public sealed class ApiRequestTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
-        Assert.Equal("El identificador de la petición es obligatorio.", result.Error.Message);
+        Assert.Equal(DomainErrorCodes.ApiRequestIdRequired, result.Error.Code);
+        Assert.Empty(result.Error.Args);
     }
 
     [Theory]
@@ -157,6 +161,7 @@ public sealed class ApiRequestTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiRequestLocationRequired, result.Error.Code);
     }
 
     [Fact]
@@ -180,6 +185,7 @@ public sealed class ApiRequestTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiRequestHeaderNull, result.Error.Code);
     }
 
     [Fact]
@@ -269,6 +275,8 @@ public sealed class ApiRequestTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiRequestNameInvalidChars, result.Error.Code);
+        Assert.Equal("<>:\"/\\|?*", Assert.Single(result.Error.Args));
     }
 
     [Theory]
@@ -284,6 +292,16 @@ public sealed class ApiRequestTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        if (name.EndsWith('.'))
+        {
+            Assert.Equal(DomainErrorCodes.ApiRequestNameEndsWithDot, result.Error.Code);
+            Assert.Empty(result.Error.Args);
+        }
+        else
+        {
+            Assert.Equal(DomainErrorCodes.ApiRequestNameReserved, result.Error.Code);
+            Assert.Equal(name.Split('.')[0].TrimEnd(), Assert.Single(result.Error.Args));
+        }
     }
 
     [Theory]

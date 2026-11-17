@@ -67,41 +67,41 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
     {
         if (id is null)
         {
-            return Result<ApiRequest>.Failure(ErrorsReasons.IdNull, "El identificador de la petición es obligatorio.");
+            return Result<ApiRequest>.Failure(ErrorsReasons.IdNull, DomainErrorCodes.ApiRequestIdRequired);
         }
 
         if (collectionId is null && folderId is null)
         {
-            return Result<ApiRequest>.Failure(ErrorsReasons.IdNull, "El identificador de la colección o carpeta es obligatorio.");
+            return Result<ApiRequest>.Failure(ErrorsReasons.IdNull, DomainErrorCodes.ApiRequestLocationRequired);
         }
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput, "El nombre de la petición no puede estar vacío.");
+            return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestNameEmpty);
         }
 
         var trimmedName = name.Trim();
         if (trimmedName.Any(c => char.IsControl(c) || InvalidNameChars.Contains(c)))
         {
             return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput,
-                $"El nombre de la petición no puede contener caracteres de control ni {InvalidNameChars}.");
+                DomainErrorCodes.ApiRequestNameInvalidChars, InvalidNameChars);
         }
 
         if (trimmedName.EndsWith('.'))
         {
-            return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput, "El nombre de la petición no puede terminar en punto.");
+            return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestNameEndsWithDot);
         }
 
         var baseName = trimmedName.Split('.')[0].TrimEnd();
         if (ReservedNames.Contains(baseName, StringComparer.OrdinalIgnoreCase))
         {
             return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput,
-                $"El nombre de la petición no puede ser un nombre reservado del sistema ({baseName}).");
+                DomainErrorCodes.ApiRequestNameReserved, baseName);
         }
 
         if (!Enum.IsDefined(method))
         {
-            return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput, "El método HTTP de la petición no es válido.");
+            return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestMethodInvalid);
         }
 
         var validatedHeaders = new List<HeaderValue>();
@@ -111,7 +111,7 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
             {
                 if (header is null)
                 {
-                    return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput, "Las cabeceras de la petición no pueden contener elementos nulos.");
+                    return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestHeaderNull);
                 }
 
                 validatedHeaders.Add(header);

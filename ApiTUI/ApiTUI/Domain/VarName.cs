@@ -12,14 +12,14 @@ public sealed record VarName
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return Result<VarName>.Failure(ErrorsReasons.InvalidInput, "El nombre de la variable no puede estar vacío.");
+            return Result<VarName>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.VarNameEmpty);
         }
 
         var invalidChars = value.Where(c => !IsAllowed(c)).Distinct().ToArray();
         if (invalidChars.Length > 0)
         {
             return Result<VarName>.Failure(ErrorsReasons.InvalidInput,
-                $"El nombre de la variable contiene caracteres no permitidos: {string.Join(", ", invalidChars.Select(c => $"'{c}'"))}. Solo se admiten letras ASCII (a-z, A-Z), dígitos (0-9), '-', '_' y '.'.");
+                DomainErrorCodes.VarNameInvalidChars, string.Join(", ", invalidChars.Select(c => $"'{c}'")));
         }
 
         return Result<VarName>.Success(new VarName(value));

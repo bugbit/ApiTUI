@@ -7,6 +7,8 @@
     <Nullable>enable</Nullable>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <PredefinedCulturesOnly>false</PredefinedCulturesOnly>
+    <NeutralLanguage>es</NeutralLanguage>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
   </PropertyGroup>
 
@@ -15,5 +17,14 @@
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.24.2-preview.1" />
     <PackageReference Include="Terminal.Gui" Version="2.5.0" />
   </ItemGroup>
+
+  <!--
+    Native AOT incrusta los satélites de recursos del proyecto (p. ej. en/ApiTUI.resources.dll) en el ejecutable,
+    pero el publish los sigue copiando. Se eliminan de la carpeta de publicación porque no se usan.
+  -->
+  <Target Name="RemoveEmbeddedSatellitesFromAotPublish" AfterTargets="Publish" Condition="'$(PublishAot)' == 'true'">
+    <Delete Files="@(IntermediateSatelliteAssembliesWithTargetPath->'$(PublishDir)%(TargetPath)')" />
+    <RemoveDir Directories="@(IntermediateSatelliteAssembliesWithTargetPath->'$(PublishDir)%(Culture)')" />
+  </Target>
 
 </Project>

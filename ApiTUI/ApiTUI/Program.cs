@@ -6,19 +6,23 @@
 // También declara ApiTuiJsonContext para generar la serialización JSON compatible con Native AOT.
 
 using ApiTUI;
+using ApiTUI.Localization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Text.Json.Serialization;
+using System.Globalization;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
 builder.ConfigureContainer(new DefaultServiceProviderFactory(
     new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true }));
 builder.Services.AddSingleton<IHello, Hello>();
-builder.Services.AddApiTui();
+builder.Services.AddApiTui(builder.Configuration["Language"]);
 
 using var host = builder.Build();
+var messages = host.Services.GetRequiredService<Messages>();
+CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.CurrentUICulture = messages.Culture;
 await host.StartAsync(CancellationToken.None);
 var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
 

@@ -58,6 +58,7 @@ public sealed class VarValueTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueNameRequired, result.Error.Code);
     }
 
     [Fact]
