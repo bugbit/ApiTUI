@@ -1,0 +1,90 @@
+using ApiTUI.Adapters.Identity;
+using ApiTUI.Application;
+using ApiTUI.Application.Ports;
+using ApiTUI.Application.SendApiRequest;
+using ApiTUI.Common;
+using ApiTUI.Localization;
+
+namespace ApiTUI.Domain.Tests;
+
+// Redirige Console.Out: comparte la colección sin paralelismo con los demás tests que tocan estado global.
+[Collection("Language configuration")]
+public sealed class ApiTuiAppTests
+{
+    [Fact]
+    public async Task Run_SuccessfulResponse_SendsGetAndPrintsResult()
+    {
+        var sender = new FakeHttpSender(Result<HttpResponseData>.Success(new HttpResponseData(200, "OK",
+            [new("Content-Type", "application/json")], "{\"id\":1}")));
+
+        var output = await RunAsync(sender, "es");
+
+        var request = Assert.Single(sender.Requests);
+        Assert.Equal(RequestMethod.Get, request.Method);
+        Assert.Equal(new Uri(ApiTuiApp.SampleUrl), request.Url);
+        Assert.Equal(new KeyValuePair<string, string>("Accept", "application/json"), Assert.Single(request.Headers));
+        Assert.Null(request.Body);
+        Assert.Contains($"Petición: GET {ApiTuiApp.SampleUrl}", output);
+        Assert.Contains("Estado: 200 OK", output);
+        Assert.Contains("Duración: ", output);
+        Assert.Contains("  Content-Type: application/json", output);
+        Assert.Contains("{\"id\":1}", output);
+    }
+
+    [Fact]
+    public async Task Run_Failure_PrintsTranslatedError()
+    {
+        var sender = new FakeHttpSender(Result<HttpResponseData>.Failure(ErrorsReasons.HttpFailure,
+            ApplicationErrorCodes.HttpRequestFailed, "NameResolutionError"));
+
+        var output = await RunAsync(sender, "en");
+
+        Assert.Contains($"Request: GET {ApiTuiApp.SampleUrl}", output);
+        Assert.Contains("Error: ", output);
+        Assert.Contains("NameResolutionError", output);
+        Assert.DoesNotContain("Status:", output);
+    }
+
+    [Fact]
+    public async Task Run_Cancelled_PropagatesCancellation()
+    {
+        var sender = new FakeHttpSender(Result<HttpResponseData>.Success(new HttpResponseData(200, "OK", [], "")));
+        var app = new ApiTuiApp(new SendApiRequestUseCase(sender, TimeProvider.System), new GuidIdGenerator(), new Messages("es"));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => app.RunAsync(new CancellationToken(true)));
+        Assert.Empty(sender.Requests);
+    }
+
+    private static async Task<string> RunAsync(FakeHttpSender sender, string language)
+    {
+        var app = new ApiTuiApp(new SendApiRequestUseCase(sender, TimeProvider.System), new GuidIdGenerator(),
+            new Messages(language));
+        var originalOut = Console.Out;
+        using var output = new StringWriter();
+        try
+        {
+            Console.SetOut(output);
+            await app.RunAsync(CancellationToken.None);
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        return output.ToString();
+    }
+
+    private sealed class FakeHttpSender(Result<HttpResponseData> result) : IHttpSender
+    {
+        private readonly Result<HttpResponseData> _result = result;
+
+        public List<HttpRequestData> Requests { get; } = [];
+
+        public Task<Result<HttpResponseData>> SendAsync(HttpRequestData request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Requests.Add(request);
+            return Task.FromResult(_result);
+        }
+    }
+}

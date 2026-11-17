@@ -4,7 +4,9 @@ Cliente HTTP interactivo para terminal, desarrollado en .NET con [Terminal.Gui](
 
 Las colecciones y peticiones se organizarán en una jerarquía de carpetas y se guardarán como ficheros JSON. El proyecto está planteado para publicarse como ejecutable nativo mediante Native AOT y como imagen Docker.
 
-> **Estado del proyecto:** la consola .NET 10 arranca con Generic Host, resuelve `ApiTuiApp` mediante DI, imprime un saludo traducido («¡Hola, mundo!» o «Hello, World!») y termina. Los proveedores de logging están desactivados para reservar la consola a la futura TUI. Las funcionalidades HTTP, la interfaz y la persistencia siguen pendientes.
+> **Estado del proyecto:** la consola .NET 10 arranca con Generic Host, hace como prueba provisional un GET a `https://jsonplaceholder.typicode.com/todos/1` con el caso de uso `SendApiRequestUseCase` y el adaptador con `HttpClient`, muestra por consola estado, duración, cabeceras y cuerpo, y termina. La TUI y la persistencia siguen pendientes.
+
+El envío admite cancelación y un límite de 100 segundos que cubre la respuesta completa. Las variables todavía no tienen valores: un marcador válido `{{var}}` en URL, cuerpo o cabecera habilitada devuelve un error hasta que se implementen los entornos. Las cabeceras deshabilitadas se ignoran y los valores con CR, LF o NUL se rechazan antes de enviar.
 
 ## Objetivos
 
@@ -92,7 +94,7 @@ dotnet build ApiTUI/ApiTUI.slnx --configuration Release
 dotnet run --project ApiTUI/ApiTUI
 ```
 
-La ejecución actual imprime únicamente el saludo (`¡Hola, mundo!` en español, `Hello, World!` con `--Language en`) y termina.
+La ejecución actual hace un GET de prueba a `https://jsonplaceholder.typicode.com/todos/1` (requiere conexión a Internet), muestra el resultado (en inglés con `--Language en`) y termina. Si la petición falla, muestra el error traducido.
 
 ### Publicar como Native AOT
 
@@ -143,7 +145,7 @@ docker run --rm -it `
 
 ## Estructura actual y prevista
 
-La solución actual está en `ApiTUI/ApiTUI.slnx`. Contiene la consola `ApiTUI/ApiTUI` y el proyecto `ApiTUI/tests/ApiTUI.Domain.Tests`, que solo tiene una prueba vacía. `Program.cs` configura Generic Host y valida el contenedor al arrancar; `ServiceCollectionExtensions.AddApiTui()` registra `ApiTuiApp` como singleton. Terminal.Gui ya está referenciado, pero todavía no se utiliza.
+La solución actual está en `ApiTUI/ApiTUI.slnx`. Contiene la consola `ApiTUI/ApiTUI` y el proyecto `ApiTUI/tests/ApiTUI.Domain.Tests`, con pruebas de dominio, aplicación, adaptadores y localización. Dentro de la consola, `Application/SendApiRequest` coordina el envío a través del puerto `IHttpSender`; `Adapters/Http/HttpClientSender` implementa el transporte. `Program.cs` configura Generic Host y valida el contenedor al arrancar; `ServiceCollectionExtensions.AddApiTui()` registra los servicios como singleton. Terminal.Gui ya está referenciado, pero todavía no se utiliza.
 
 La separación en capas sigue prevista:
 
@@ -190,7 +192,7 @@ Cada fichero representará una entidad o configuración. La estructura definitiv
 
 ## Configuración
 
-Los mensajes de error del dominio y los textos de la interfaz se traducen al español (`es`, por defecto) o al inglés (`en`) mediante la clase `Messages`. Hoy solo el saludo de la consola usa un texto de interfaz; los errores traducidos aún no se muestran en pantalla.
+Los mensajes de error del dominio y los textos de la interfaz se traducen al español (`es`, por defecto) o al inglés (`en`) mediante la clase `Messages`. La prueba de consola usa ya estos textos y muestra los errores traducidos.
 
 Para elegir el idioma:
 
@@ -225,7 +227,7 @@ dotnet format ApiTUI/ApiTUI.slnx --verify-no-changes
 dotnet test ApiTUI/ApiTUI.slnx
 ```
 
-La prueba vacía actual no verifica comportamiento funcional. Los flujos de publicación siguen pendientes.
+Los tests del envío usan dobles y no realizan conexiones de red. Los flujos de publicación siguen pendientes.
 
 ## Limitaciones previstas
 

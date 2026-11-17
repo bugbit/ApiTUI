@@ -1,6 +1,6 @@
 ﻿// Punto de entrada y composition root de ApiTUI.
 // Configura el Generic Host sin proveedores de logging y con validación del contenedor DI.
-// Registra IHello y los servicios de AddApiTui(), arranca el host y ejecuta ApiTuiApp
+// Registra los servicios de AddApiTui(), arranca el host y ejecuta ApiTuiApp
 // con el token ApplicationStopping. Trata la cancelación como salida normal y detiene
 // el host en finally cuando termina la aplicación.
 // También declara ApiTuiJsonContext para generar la serialización JSON compatible con Native AOT.
@@ -17,7 +17,6 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
 builder.ConfigureContainer(new DefaultServiceProviderFactory(
     new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true }));
-builder.Services.AddSingleton<IHello, Hello>();
 builder.Services.AddApiTui(builder.Configuration["Language"]);
 
 using var host = builder.Build();

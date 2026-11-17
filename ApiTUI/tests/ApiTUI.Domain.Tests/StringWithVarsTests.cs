@@ -5,6 +5,20 @@ namespace ApiTUI.Domain.Tests;
 public sealed class StringWithVarsTests
 {
     [Theory]
+    [InlineData(null, "")]
+    [InlineData("", "")]
+    [InlineData("plain text", "")]
+    [InlineData("{{b}}/{{a}}/{{b}}/{{A}}", "b,a,A")]
+    [InlineData("{{ a }}{{a b}}{{ñ}}{{}}{{valid}}", "valid")]
+    [InlineData("{{api-key}}/{{user_id}}/{{env.prod}}", "api-key,user_id,env.prod")]
+    public void GetVarNames_ReturnsValidDistinctNamesInOrder(string? text, string expected)
+    {
+        var names = new StringWithVars(text).GetVarNames();
+
+        Assert.Equal(expected.Split(',', StringSplitOptions.RemoveEmptyEntries), names.Select(name => name.Value));
+    }
+
+    [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("Texto sin marcadores")]

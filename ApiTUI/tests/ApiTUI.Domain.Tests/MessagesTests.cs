@@ -5,6 +5,7 @@ using System.Resources;
 using System.Text;
 using System.Text.RegularExpressions;
 using ApiTUI.Common;
+using ApiTUI.Application;
 using ApiTUI.Localization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,7 +21,7 @@ public sealed class MessagesTests
     [InlineData("en")]
     public void Catalog_ContainsExactlyDomainErrorCodesAndUiKeys(string language)
     {
-        var codes = new[] { typeof(DomainErrorCodes), typeof(UiMessageKeys) }
+        var codes = new[] { typeof(DomainErrorCodes), typeof(UiMessageKeys), typeof(ApplicationErrorCodes) }
             .SelectMany(type => type.GetFields(BindingFlags.Public | BindingFlags.Static))
             .Where(field => field.IsLiteral && field.FieldType == typeof(string))
             .Select(field => Assert.IsType<string>(field.GetRawConstantValue())).ToArray();
@@ -41,6 +42,12 @@ public sealed class MessagesTests
             DomainErrorCodes.IdentifierRequired, DomainErrorCodes.ApiRequestNameInvalidChars,
             DomainErrorCodes.ApiRequestNameReserved, DomainErrorCodes.HeaderNameInvalidChars,
             DomainErrorCodes.VarNameInvalidChars,
+            ApplicationErrorCodes.UnresolvedVariables, ApplicationErrorCodes.UrlInvalid,
+            ApplicationErrorCodes.UrlSchemeNotSupported, ApplicationErrorCodes.HeaderInvalid,
+            ApplicationErrorCodes.HeaderValueInvalid, ApplicationErrorCodes.HttpTimeout,
+            ApplicationErrorCodes.HttpRequestFailed,
+            UiMessageKeys.Request, UiMessageKeys.ResponseStatus, UiMessageKeys.ResponseDuration,
+            UiMessageKeys.RequestFailed,
         ];
 
         foreach (var (code, template) in spanish)
@@ -99,33 +106,12 @@ public sealed class MessagesTests
     }
 
     [Theory]
-    [InlineData("es", "¡Hola, mundo!")]
-    [InlineData("en", "Hello, World!")]
-    [InlineData("fr", "¡Hola, mundo!")]
+    [InlineData("es", "Duración: 42 ms")]
+    [InlineData("en", "Duration: 42 ms")]
+    [InlineData("fr", "Duración: 42 ms")]
     public void Get_UiKey_UsesSelectedLanguage(string language, string expected)
     {
-        Assert.Equal(expected, new Messages(language).Get(UiMessageKeys.HelloWorld));
-    }
-
-    [Theory]
-    [InlineData("es", "¡Hola, mundo!")]
-    [InlineData("en", "Hello, World!")]
-    public void Hello_SayHello_WritesTranslatedGreeting(string language, string expected)
-    {
-        var originalOut = Console.Out;
-        using var output = new StringWriter();
-        try
-        {
-            Console.SetOut(output);
-
-            new Hello(new Messages(language)).SayHello();
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-        }
-
-        Assert.Equal(expected + Environment.NewLine, output.ToString());
+        Assert.Equal(expected, new Messages(language).Get(UiMessageKeys.ResponseDuration, 42L));
     }
 
     [Fact]
@@ -177,7 +163,6 @@ public sealed class MessagesTests
             string[] args = commandLineLanguage is null ? [] : ["--Language", commandLineLanguage];
             var builder = Host.CreateApplicationBuilder(args);
             builder.Logging.ClearProviders();
-            builder.Services.AddSingleton<IHello, Hello>();
             builder.Services.AddApiTui(builder.Configuration["Language"]);
             using var host = builder.Build();
 

@@ -9,6 +9,27 @@ public sealed partial record StringWithVars(string? Text)
     [GeneratedRegex(@"\{\{([^{}]+)\}\}")]
     private static partial Regex VarPattern();
 
+    public IReadOnlyList<VarName> GetVarNames()
+    {
+        if (string.IsNullOrEmpty(Text))
+        {
+            return [];
+        }
+
+        var names = new List<VarName>();
+        var seen = new HashSet<VarName>();
+        foreach (Match match in VarPattern().Matches(Text))
+        {
+            var name = VarName.Create(match.Groups[1].Value);
+            if (name.IsSuccess && seen.Add(name.Value))
+            {
+                names.Add(name.Value);
+            }
+        }
+
+        return names.AsReadOnly();
+    }
+
     public string? Resolve(IReadOnlyDictionary<VarName, object?> variables)
     {
         ArgumentNullException.ThrowIfNull(variables);

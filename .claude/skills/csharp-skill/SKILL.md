@@ -48,27 +48,24 @@ Usa **constructores primarios** para la inyección de dependencias:
 - los parámetros del constructor **nunca** se usan directamente en métodos o propiedades;
 - cada dependencia se asigna a un campo `readonly` con prefijo `_`;
 - dentro del cuerpo de la clase solo se usa ese campo;
-- no uses `in`, `ref` ni `out` en los parámetros del constructor: el contenedor de DI no puede resolverlos (buscaría `IHello&` en lugar de `IHello`) y con tipos referencia no aportan nada.
+- no uses `in`, `ref` ni `out` en los parámetros del constructor: el contenedor de DI no puede resolverlos (buscaría `IHttpSender&` en lugar de `IHttpSender`) y con tipos referencia no aportan nada.
 
 Si el compilador emite **CS9124**, se está usando el parámetro además del campo: sustitúyelo por el campo.
 
 Ejemplo correcto:
 
 ```csharp
-public interface IHello
+public sealed class SendApiRequestUseCase(IHttpSender httpSender, TimeProvider timeProvider)
 {
-    void SayHello();
-}
+    private readonly IHttpSender _httpSender = httpSender;
+    private readonly TimeProvider _timeProvider = timeProvider;
 
-public sealed class ApiTuiApp(IHello hello)
-{
-    private readonly IHello _hello = hello;
-
-    public Task RunAsync(CancellationToken cancellationToken)
+    public async Task<Result<ApiResponse>> ExecuteAsync(ApiRequest request, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _hello.SayHello();
-        return Task.CompletedTask;
+        var start = _timeProvider.GetTimestamp();
+        var result = await _httpSender.SendAsync(ToHttpRequestData(request), cancellationToken);
+        // ...
     }
 }
 ```

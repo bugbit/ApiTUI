@@ -57,7 +57,46 @@
   <data name="VarValue.NameRequired" xml:space="preserve">
     <value>El nombre de la variable es obligatorio.</value>
   </data>
-  <data name="Ui.HelloWorld" xml:space="preserve">
-    <value>¡Hola, mundo!</value>
+  <data name="Ui.Request" xml:space="preserve">
+    <value>Petición: {0}</value>
+  </data>
+  <data name="Ui.ResponseStatus" xml:space="preserve">
+    <value>Estado: {0}</value>
+  </data>
+  <data name="Ui.ResponseDuration" xml:space="preserve">
+    <value>Duración: {0} ms</value>
+  </data>
+  <data name="Ui.ResponseHeaders" xml:space="preserve">
+    <value>Cabeceras:</value>
+  </data>
+  <data name="Ui.ResponseBody" xml:space="preserve">
+    <value>Cuerpo:</value>
+  </data>
+  <data name="Ui.RequestFailed" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="SendApiRequest.UnresolvedVariables" xml:space="preserve">
+    <value>No hay valores para las variables: {0}.</value>
+  </data>
+  <data name="SendApiRequest.UrlEmpty" xml:space="preserve">
+    <value>La URL de la petición no puede estar vacía.</value>
+  </data>
+  <data name="SendApiRequest.UrlInvalid" xml:space="preserve">
+    <value>La URL de la petición no es válida: {0}.</value>
+  </data>
+  <data name="SendApiRequest.UrlSchemeNotSupported" xml:space="preserve">
+    <value>El esquema de la URL no está admitido: {0}.</value>
+  </data>
+  <data name="SendApiRequest.HeaderInvalid" xml:space="preserve">
+    <value>No se puede enviar la cabecera: {0}.</value>
+  </data>
+  <data name="SendApiRequest.HeaderValueInvalid" xml:space="preserve">
+    <value>El valor de la cabecera {0} no puede contener CR, LF ni NUL.</value>
+  </data>
+  <data name="Http.Timeout" xml:space="preserve">
+    <value>La petición ha superado el límite de {0} segundos.</value>
+  </data>
+  <data name="Http.RequestFailed" xml:space="preserve">
+    <value>No se pudo completar la petición HTTP: {0}.</value>
   </data>
 </root>

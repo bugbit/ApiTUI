@@ -57,7 +57,46 @@
   <data name="VarValue.NameRequired" xml:space="preserve">
     <value>The variable name is required.</value>
   </data>
-  <data name="Ui.HelloWorld" xml:space="preserve">
-    <value>Hello, World!</value>
+  <data name="Ui.Request" xml:space="preserve">
+    <value>Request: {0}</value>
+  </data>
+  <data name="Ui.ResponseStatus" xml:space="preserve">
+    <value>Status: {0}</value>
+  </data>
+  <data name="Ui.ResponseDuration" xml:space="preserve">
+    <value>Duration: {0} ms</value>
+  </data>
+  <data name="Ui.ResponseHeaders" xml:space="preserve">
+    <value>Headers:</value>
+  </data>
+  <data name="Ui.ResponseBody" xml:space="preserve">
+    <value>Body:</value>
+  </data>
+  <data name="Ui.RequestFailed" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="SendApiRequest.UnresolvedVariables" xml:space="preserve">
+    <value>No values are available for the variables: {0}.</value>
+  </data>
+  <data name="SendApiRequest.UrlEmpty" xml:space="preserve">
+    <value>The request URL cannot be empty.</value>
+  </data>
+  <data name="SendApiRequest.UrlInvalid" xml:space="preserve">
+    <value>The request URL is invalid: {0}.</value>
+  </data>
+  <data name="SendApiRequest.UrlSchemeNotSupported" xml:space="preserve">
+    <value>The URL scheme is not supported: {0}.</value>
+  </data>
+  <data name="SendApiRequest.HeaderInvalid" xml:space="preserve">
+    <value>The header cannot be sent: {0}.</value>
+  </data>
+  <data name="SendApiRequest.HeaderValueInvalid" xml:space="preserve">
+    <value>The value of header {0} cannot contain CR, LF or NUL.</value>
+  </data>
+  <data name="Http.Timeout" xml:space="preserve">
+    <value>The request exceeded the timeout of {0} seconds.</value>
+  </data>
+  <data name="Http.RequestFailed" xml:space="preserve">
+    <value>The HTTP request could not be completed: {0}.</value>
   </data>
 </root>
