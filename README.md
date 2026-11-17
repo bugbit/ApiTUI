@@ -33,7 +33,7 @@ Terminal.Gui dibuja la interfaz en la terminal; ApiTUI no requiere que el usuari
 ### Gestión de peticiones
 
 - Crear, editar, duplicar y eliminar peticiones.
-- Seleccionar el método HTTP: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD` y `OPTIONS`.
+- Seleccionar el método HTTP: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS` y `QUERY`.
 - Configurar URL, parámetros de consulta y cabeceras.
 - Enviar cuerpos de petición, incluyendo JSON y texto.
 - Ejecutar la petición y cancelar una operación en curso cuando sea posible.
