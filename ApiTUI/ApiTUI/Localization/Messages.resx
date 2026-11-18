@@ -21,23 +21,35 @@
   <data name="ApiRequest.LocationRequired" xml:space="preserve">
     <value>El identificador de la colección o carpeta es obligatorio.</value>
   </data>
-  <data name="ApiRequest.NameEmpty" xml:space="preserve">
-    <value>El nombre de la petición no puede estar vacío.</value>
-  </data>
-  <data name="ApiRequest.NameInvalidChars" xml:space="preserve">
-    <value>El nombre de la petición no puede contener caracteres de control ni {0}.</value>
-  </data>
-  <data name="ApiRequest.NameEndsWithDot" xml:space="preserve">
-    <value>El nombre de la petición no puede terminar en punto.</value>
-  </data>
-  <data name="ApiRequest.NameReserved" xml:space="preserve">
-    <value>El nombre de la petición no puede ser un nombre reservado del sistema ({0}).</value>
-  </data>
   <data name="ApiRequest.MethodInvalid" xml:space="preserve">
     <value>El método HTTP de la petición no es válido.</value>
   </data>
   <data name="ApiRequest.HeaderNull" xml:space="preserve">
     <value>Las cabeceras de la petición no pueden contener elementos nulos.</value>
+  </data>
+  <data name="ApiCollection.IdRequired" xml:space="preserve">
+    <value>El identificador de la colección es obligatorio.</value>
+  </data>
+  <data name="ApiFolder.IdRequired" xml:space="preserve">
+    <value>El identificador de la carpeta es obligatorio.</value>
+  </data>
+  <data name="ApiFolder.LocationRequired" xml:space="preserve">
+    <value>El identificador de la colección o carpeta padre es obligatorio.</value>
+  </data>
+  <data name="ApiFolder.ParentIsSelf" xml:space="preserve">
+    <value>Una carpeta no puede ser su propia carpeta padre.</value>
+  </data>
+  <data name="ItemName.Empty" xml:space="preserve">
+    <value>El nombre no puede estar vacío.</value>
+  </data>
+  <data name="ItemName.InvalidChars" xml:space="preserve">
+    <value>El nombre no puede contener caracteres de control ni {0}.</value>
+  </data>
+  <data name="ItemName.EndsWithDot" xml:space="preserve">
+    <value>El nombre no puede terminar en punto.</value>
+  </data>
+  <data name="ItemName.Reserved" xml:space="preserve">
+    <value>El nombre no puede ser un nombre reservado del sistema ({0}).</value>
   </data>
   <data name="HeaderName.Empty" xml:space="preserve">
     <value>El nombre de la cabecera no puede estar vacío.</value>

@@ -39,8 +39,8 @@ public sealed class MessagesTests
         var english = Catalog("en");
         string[] withArgument =
         [
-            DomainErrorCodes.IdentifierRequired, DomainErrorCodes.ApiRequestNameInvalidChars,
-            DomainErrorCodes.ApiRequestNameReserved, DomainErrorCodes.HeaderNameInvalidChars,
+            DomainErrorCodes.IdentifierRequired, DomainErrorCodes.ItemNameInvalidChars,
+            DomainErrorCodes.ItemNameReserved, DomainErrorCodes.HeaderNameInvalidChars,
             DomainErrorCodes.VarNameInvalidChars,
             ApplicationErrorCodes.UnresolvedVariables, ApplicationErrorCodes.UrlInvalid,
             ApplicationErrorCodes.UrlSchemeNotSupported, ApplicationErrorCodes.HeaderInvalid,
@@ -95,12 +95,12 @@ public sealed class MessagesTests
     }
 
     [Theory]
-    [InlineData("es", "El nombre de la petición no puede ser un nombre reservado del sistema (CON).")]
-    [InlineData("en", "The request name cannot be a reserved system name (CON).")]
-    [InlineData("fr", "El nombre de la petición no puede ser un nombre reservado del sistema (CON).")]
+    [InlineData("es", "El nombre no puede ser un nombre reservado del sistema (CON).")]
+    [InlineData("en", "The name cannot be a reserved system name (CON).")]
+    [InlineData("fr", "El nombre no puede ser un nombre reservado del sistema (CON).")]
     public void Format_WithArguments_UsesSelectedLanguage(string language, string expected)
     {
-        var error = new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestNameReserved, "CON");
+        var error = new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ItemNameReserved, "CON");
 
         Assert.Equal(expected, new Messages(language).Format(error));
     }
@@ -139,9 +139,9 @@ public sealed class MessagesTests
         try
         {
             CultureInfo.CurrentCulture = commaCulture;
-            var error = new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestNameReserved, 1.5);
+            var error = new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ItemNameReserved, 1.5);
 
-            Assert.Equal("The request name cannot be a reserved system name (1.5).", new Messages("en").Format(error));
+            Assert.Equal("The name cannot be a reserved system name (1.5).", new Messages("en").Format(error));
         }
         finally
         {
@@ -181,12 +181,12 @@ public sealed class MessagesTests
     public void ErrorAndFailure_PreserveCodeAndArgumentsWithoutSharingMutableArray()
     {
         object[] args = ["CON"];
-        var result = Result<string>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestNameReserved, args);
+        var result = Result<string>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ItemNameReserved, args);
         args[0] = "changed";
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiRequestNameReserved, result.Error.Code);
+        Assert.Equal(DomainErrorCodes.ItemNameReserved, result.Error.Code);
         Assert.Equal("CON", Assert.Single(result.Error.Args));
         var converted = Result<string>.Failure(result.Error);
         Assert.Same(result.Error, converted.Error);

@@ -4,19 +4,8 @@ namespace ApiTUI.Domain;
 
 public sealed class ApiRequest : IEquatable<ApiRequest>
 {
-    // El nombre se usa como nombre de fichero (requests/<Petición>.json): se rechazan los caracteres
-    // y nombres reservados de Windows, que son el conjunto más restrictivo de los SO soportados.
-    private const string InvalidNameChars = "<>:\"/\\|?*";
-
-    private static readonly string[] ReservedNames =
-    [
-        "CON", "PRN", "AUX", "NUL",
-        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
-    ];
-
     public ApiRequestId Id { get; }
-    public string Name { get; }
+    public ItemName Name { get; }
     public RequestMethod Method { get; }
     public StringWithVars Url { get; }
     public IReadOnlyList<HeaderValue> Headers { get; }
@@ -24,7 +13,7 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
     public ApiCollectionId? CollectionId { get; }
     public ApiFolderId? FolderId { get; }
 
-    private ApiRequest(ApiRequestId id, string name, RequestMethod method, StringWithVars url,
+    private ApiRequest(ApiRequestId id, ItemName name, RequestMethod method, StringWithVars url,
         IReadOnlyList<HeaderValue> headers, StringWithVars body, ApiCollectionId? collectionId, ApiFolderId? folderId)
     {
         Id = id;
@@ -75,28 +64,10 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
             return Result<ApiRequest>.Failure(ErrorsReasons.IdNull, DomainErrorCodes.ApiRequestLocationRequired);
         }
 
-        if (string.IsNullOrWhiteSpace(name))
+        var itemName = ItemName.Create(name);
+        if (!itemName.IsSuccess)
         {
-            return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestNameEmpty);
-        }
-
-        var trimmedName = name.Trim();
-        if (trimmedName.Any(c => char.IsControl(c) || InvalidNameChars.Contains(c)))
-        {
-            return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput,
-                DomainErrorCodes.ApiRequestNameInvalidChars, InvalidNameChars);
-        }
-
-        if (trimmedName.EndsWith('.'))
-        {
-            return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestNameEndsWithDot);
-        }
-
-        var baseName = trimmedName.Split('.')[0].TrimEnd();
-        if (ReservedNames.Contains(baseName, StringComparer.OrdinalIgnoreCase))
-        {
-            return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput,
-                DomainErrorCodes.ApiRequestNameReserved, baseName);
+            return Result<ApiRequest>.Failure(itemName.Error);
         }
 
         if (!Enum.IsDefined(method))
@@ -118,7 +89,7 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
             }
         }
 
-        return Result<ApiRequest>.Success(new ApiRequest(id, trimmedName, method,
+        return Result<ApiRequest>.Success(new ApiRequest(id, itemName.Value, method,
             url ?? new StringWithVars(null), Array.AsReadOnly(validatedHeaders.ToArray()),
             body ?? new StringWithVars(null), collectionId, folderId));
     }

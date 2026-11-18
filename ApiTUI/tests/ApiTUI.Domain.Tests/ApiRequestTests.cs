@@ -19,7 +19,7 @@ public sealed class ApiRequestTests
         Assert.True(result.IsSuccess);
         var request = result.Value;
         Assert.Same(id, request.Id);
-        Assert.Equal("Login", request.Name);
+        Assert.Equal("Login", request.Name.Value);
         Assert.Equal(RequestMethod.Post, request.Method);
         Assert.Same(url, request.Url);
         Assert.Same(body, request.Body);
@@ -42,7 +42,7 @@ public sealed class ApiRequestTests
         Assert.True(result.IsSuccess);
         var request = result.Value;
         Assert.Same(id, request.Id);
-        Assert.Equal("Search", request.Name);
+        Assert.Equal("Search", request.Name.Value);
         Assert.Equal(RequestMethod.Query, request.Method);
         Assert.Same(url, request.Url);
         Assert.Same(body, request.Body);
@@ -86,41 +86,32 @@ public sealed class ApiRequestTests
         Assert.Equal(method, result.Value.Method);
     }
 
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData("\t\r\n")]
-    public void CreateInCollection_BlankName_ReturnsInvalidInput(string? name)
+    [Fact]
+    public void CreateInCollection_InvalidName_PropagatesItemNameError()
     {
-        var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), name);
+        var nameError = ItemName.Create("CON");
+        Assert.False(nameError.IsSuccess);
+
+        var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "CON");
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiRequestNameEmpty, result.Error.Code);
+        Assert.Equal(nameError.Error.Code, result.Error.Code);
+        Assert.Equal(nameError.Error.Args, result.Error.Args);
     }
 
     [Fact]
-    public void CreateInFolder_BlankName_ReturnsInvalidInput()
+    public void CreateInFolder_InvalidName_PropagatesItemNameError()
     {
-        var result = ApiRequest.CreateInFolder(RequestId(), FolderId(), " ");
+        var nameError = ItemName.Create("name.");
+        Assert.False(nameError.IsSuccess);
+
+        var result = ApiRequest.CreateInFolder(RequestId(), FolderId(), "name.");
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiRequestNameEmpty, result.Error.Code);
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Create_NameWithSurroundingWhitespace_TrimsName(bool inFolder)
-    {
-        var result = inFolder
-            ? ApiRequest.CreateInFolder(RequestId(), FolderId(), "  Login  ")
-            : ApiRequest.CreateInCollection(RequestId(), CollectionId(), "  Login  ");
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal("Login", result.Value.Name);
+        Assert.Equal(nameError.Error.Code, result.Error.Code);
+        Assert.Equal(nameError.Error.Args, result.Error.Args);
     }
 
     [Theory]
@@ -255,66 +246,6 @@ public sealed class ApiRequestTests
         Assert.False(result.Value.Equals(none));
         Assert.False(result.Value == none);
         Assert.True(none == null);
-    }
-
-    [Theory]
-    [InlineData("a/b")]
-    [InlineData("a\\b")]
-    [InlineData("a:b")]
-    [InlineData("a*b")]
-    [InlineData("a?b")]
-    [InlineData("a\"b")]
-    [InlineData("a<b")]
-    [InlineData("a>b")]
-    [InlineData("a|b")]
-    [InlineData("a\tb")]
-    [InlineData("a\0b")]
-    public void CreateInCollection_NameWithInvalidFileNameChar_ReturnsInvalidInput(string name)
-    {
-        var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), name);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiRequestNameInvalidChars, result.Error.Code);
-        Assert.Equal("<>:\"/\\|?*", Assert.Single(result.Error.Args));
-    }
-
-    [Theory]
-    [InlineData("Login.")]
-    [InlineData("CON")]
-    [InlineData("con")]
-    [InlineData("NUL.json")]
-    [InlineData("Com1")]
-    [InlineData("LPT9 .txt")]
-    public void CreateInFolder_NameNotValidAsFileName_ReturnsInvalidInput(string name)
-    {
-        var result = ApiRequest.CreateInFolder(RequestId(), FolderId(), name);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        if (name.EndsWith('.'))
-        {
-            Assert.Equal(DomainErrorCodes.ApiRequestNameEndsWithDot, result.Error.Code);
-            Assert.Empty(result.Error.Args);
-        }
-        else
-        {
-            Assert.Equal(DomainErrorCodes.ApiRequestNameReserved, result.Error.Code);
-            Assert.Equal(name.Split('.')[0].TrimEnd(), Assert.Single(result.Error.Args));
-        }
-    }
-
-    [Theory]
-    [InlineData("Login v1.2")]
-    [InlineData("Obtener usuarios (paginado)")]
-    [InlineData("CONsulta")]
-    [InlineData("Petición #1 & más")]
-    public void CreateInCollection_NameValidAsFileName_Succeeds(string name)
-    {
-        var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), name);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(name, result.Value.Name);
     }
 
     private static ApiRequestId RequestId(string id = "request-1")

@@ -21,23 +21,35 @@
   <data name="ApiRequest.LocationRequired" xml:space="preserve">
     <value>The collection or folder identifier is required.</value>
   </data>
-  <data name="ApiRequest.NameEmpty" xml:space="preserve">
-    <value>The request name cannot be empty.</value>
-  </data>
-  <data name="ApiRequest.NameInvalidChars" xml:space="preserve">
-    <value>The request name cannot contain control characters or {0}.</value>
-  </data>
-  <data name="ApiRequest.NameEndsWithDot" xml:space="preserve">
-    <value>The request name cannot end with a dot.</value>
-  </data>
-  <data name="ApiRequest.NameReserved" xml:space="preserve">
-    <value>The request name cannot be a reserved system name ({0}).</value>
-  </data>
   <data name="ApiRequest.MethodInvalid" xml:space="preserve">
     <value>The request HTTP method is invalid.</value>
   </data>
   <data name="ApiRequest.HeaderNull" xml:space="preserve">
     <value>The request headers cannot contain null entries.</value>
+  </data>
+  <data name="ApiCollection.IdRequired" xml:space="preserve">
+    <value>The collection identifier is required.</value>
+  </data>
+  <data name="ApiFolder.IdRequired" xml:space="preserve">
+    <value>The folder identifier is required.</value>
+  </data>
+  <data name="ApiFolder.LocationRequired" xml:space="preserve">
+    <value>The collection or parent folder identifier is required.</value>
+  </data>
+  <data name="ApiFolder.ParentIsSelf" xml:space="preserve">
+    <value>A folder cannot be its own parent folder.</value>
+  </data>
+  <data name="ItemName.Empty" xml:space="preserve">
+    <value>The name cannot be empty.</value>
+  </data>
+  <data name="ItemName.InvalidChars" xml:space="preserve">
+    <value>The name cannot contain control characters or {0}.</value>
+  </data>
+  <data name="ItemName.EndsWithDot" xml:space="preserve">
+    <value>The name cannot end with a dot.</value>
+  </data>
+  <data name="ItemName.Reserved" xml:space="preserve">
+    <value>The name cannot be a reserved system name ({0}).</value>
   </data>
   <data name="HeaderName.Empty" xml:space="preserve">
     <value>The header name cannot be empty.</value>
