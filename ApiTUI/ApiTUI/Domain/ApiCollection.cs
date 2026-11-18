@@ -6,14 +6,19 @@ public sealed class ApiCollection : IEquatable<ApiCollection>
 {
     public ApiCollectionId Id { get; }
     public ItemName Name { get; }
+    public IReadOnlyList<VarValue> Variables { get; }
 
-    private ApiCollection(ApiCollectionId id, ItemName name)
+    private ApiCollection(ApiCollectionId id, ItemName name, IReadOnlyList<VarValue> variables)
     {
         Id = id;
         Name = name;
+        Variables = variables;
     }
 
-    public static Result<ApiCollection> Create(ApiCollectionId? id, string? name)
+    public static Result<ApiCollection> Create(
+        ApiCollectionId? id,
+        string? name,
+        IEnumerable<VarValue?>? variables = null)
     {
         if (id is null)
         {
@@ -26,7 +31,13 @@ public sealed class ApiCollection : IEquatable<ApiCollection>
             return Result<ApiCollection>.Failure(itemName.Error);
         }
 
-        return Result<ApiCollection>.Success(new ApiCollection(id, itemName.Value));
+        var variableList = VarValueList.Create(variables);
+        if (!variableList.IsSuccess)
+        {
+            return Result<ApiCollection>.Failure(variableList.Error);
+        }
+
+        return Result<ApiCollection>.Success(new ApiCollection(id, itemName.Value, variableList.Value));
     }
 
     public bool Equals(ApiCollection? other) => other is not null && Id == other.Id;

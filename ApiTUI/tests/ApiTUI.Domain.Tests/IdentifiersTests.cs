@@ -27,6 +27,17 @@ public sealed class IdentifiersTests
     }
 
     [Theory]
+    [InlineData("abc")]
+    [InlineData("0123456789abcdef0123456789abcdef")]
+    public void ApiEnvironmentIdCreate_ValidId_PreservesValue(string value)
+    {
+        var result = ApiEnvironmentId.Create(value);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(value, result.Value.Id);
+    }
+
+    [Theory]
     [InlineData(" abc", "abc")]
     [InlineData("abc ", "abc")]
     [InlineData("\tabc\n", "abc")]
@@ -36,6 +47,15 @@ public sealed class IdentifiersTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(expected, result.Value.Id);
+    }
+
+    [Fact]
+    public void ApiEnvironmentIdCreate_SurroundingWhitespace_TrimsValue()
+    {
+        var result = ApiEnvironmentId.Create("  local  ");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("local", result.Value.Id);
     }
 
     [Theory]
@@ -68,6 +88,21 @@ public sealed class IdentifiersTests
         Assert.Equal(nameof(ApiCollectionId), Assert.Single(result.Error.Args));
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("\t\r\n")]
+    public void ApiEnvironmentIdCreate_NullOrWhitespace_ReturnsIdNull(string? value)
+    {
+        var result = ApiEnvironmentId.Create(value);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.IdentifierRequired, result.Error.Code);
+        Assert.Equal(nameof(ApiEnvironmentId), Assert.Single(result.Error.Args));
+    }
+
     [Fact]
     public void Equals_SameTypeAndValue_AreEqual()
     {
@@ -98,6 +133,7 @@ public sealed class IdentifiersTests
     {
         Assert.Equal("abc", CreateRequestId("abc").ToString());
         Assert.Equal("abc", CreateCollectionId("abc").ToString());
+        Assert.Equal("abc", CreateEnvironmentId("abc").ToString());
     }
 
     private static ApiRequestId CreateRequestId(string value)
@@ -110,6 +146,13 @@ public sealed class IdentifiersTests
     private static ApiCollectionId CreateCollectionId(string value)
     {
         var result = ApiCollectionId.Create(value);
+        Assert.True(result.IsSuccess);
+        return result.Value;
+    }
+
+    private static ApiEnvironmentId CreateEnvironmentId(string value)
+    {
+        var result = ApiEnvironmentId.Create(value);
         Assert.True(result.IsSuccess);
         return result.Value;
     }

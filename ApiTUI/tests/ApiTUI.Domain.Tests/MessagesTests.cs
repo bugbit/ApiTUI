@@ -41,7 +41,7 @@ public sealed class MessagesTests
         [
             DomainErrorCodes.IdentifierRequired, DomainErrorCodes.ItemNameInvalidChars,
             DomainErrorCodes.ItemNameReserved, DomainErrorCodes.HeaderNameInvalidChars,
-            DomainErrorCodes.VarNameInvalidChars,
+            DomainErrorCodes.VarNameInvalidChars, DomainErrorCodes.VarValueListDuplicated,
             ApplicationErrorCodes.UnresolvedVariables, ApplicationErrorCodes.UrlInvalid,
             ApplicationErrorCodes.UrlSchemeNotSupported, ApplicationErrorCodes.HeaderInvalid,
             ApplicationErrorCodes.HeaderValueInvalid, ApplicationErrorCodes.HttpTimeout,

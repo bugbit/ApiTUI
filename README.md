@@ -4,9 +4,9 @@ Cliente HTTP interactivo para terminal, desarrollado en .NET con [Terminal.Gui](
 
 Las colecciones y peticiones se organizarán en una jerarquía de carpetas y se guardarán como ficheros JSON. El proyecto está planteado para publicarse como ejecutable nativo mediante Native AOT y como imagen Docker.
 
-> **Estado del proyecto:** el dominio modela colecciones, carpetas anidadas y peticiones con nombres válidos para el sistema de archivos. La consola .NET 10 arranca con Generic Host, hace como prueba provisional un GET a `https://jsonplaceholder.typicode.com/todos/1` con el caso de uso `SendApiRequestUseCase` y el adaptador con `HttpClient`, muestra por consola estado, duración, cabeceras y cuerpo, y termina. La TUI y la persistencia siguen pendientes.
+> **Estado del proyecto:** el dominio modela entornos, colecciones con variables, carpetas anidadas con sus propias variables y peticiones con nombres válidos para el sistema de archivos. La consola .NET 10 arranca con Generic Host, hace como prueba provisional un GET a `https://jsonplaceholder.typicode.com/todos/1` con el caso de uso `SendApiRequestUseCase` y el adaptador con `HttpClient`, muestra por consola estado, duración, cabeceras y cuerpo, y termina. La TUI y la persistencia siguen pendientes.
 
-El envío admite cancelación y un límite de 100 segundos que cubre la respuesta completa. Las variables todavía no tienen valores: un marcador válido `{{var}}` en URL, cuerpo o cabecera habilitada devuelve un error hasta que se implementen los entornos. Las cabeceras deshabilitadas se ignoran y los valores con CR, LF o NUL se rechazan antes de enviar.
+El envío admite cancelación y un límite de 100 segundos que cubre la respuesta completa. El dominio guarda variables en entornos, colecciones y carpetas, pero el caso de uso aún no las combina ni las resuelve; un marcador válido `{{var}}` en URL, cuerpo o cabecera habilitada devuelve un error. Las cabeceras deshabilitadas se ignoran y los valores con CR, LF o NUL se rechazan antes de enviar.
 
 ## Objetivos
 
@@ -145,7 +145,7 @@ docker run --rm -it `
 
 ## Estructura actual y prevista
 
-La solución actual está en `ApiTUI/ApiTUI.slnx`. Contiene la consola `ApiTUI/ApiTUI` y el proyecto `ApiTUI/tests/ApiTUI.Domain.Tests`, con pruebas de dominio, aplicación, adaptadores y localización. El dominio incluye colecciones, carpetas anidadas y peticiones, con `ItemName` compartido para validar los nombres. Dentro de la consola, `Application/SendApiRequest` coordina el envío a través del puerto `IHttpSender`; `Adapters/Http/HttpClientSender` implementa el transporte. `Program.cs` configura Generic Host y valida el contenedor al arrancar; `ServiceCollectionExtensions.AddApiTui()` registra los servicios como singleton. Terminal.Gui ya está referenciado, pero todavía no se utiliza.
+La solución actual está en `ApiTUI/ApiTUI.slnx`. Contiene la consola `ApiTUI/ApiTUI` y el proyecto `ApiTUI/tests/ApiTUI.Domain.Tests`, con pruebas de dominio, aplicación, adaptadores y localización. El dominio incluye entornos (`ApiEnvironment`), colecciones y carpetas con listas validadas de variables (`VarValueList`), además de peticiones; `ItemName` centraliza la validación de nombres. Dentro de la consola, `Application/SendApiRequest` coordina el envío a través del puerto `IHttpSender`; `Adapters/Http/HttpClientSender` implementa el transporte. `Program.cs` configura Generic Host y valida el contenedor al arrancar; `ServiceCollectionExtensions.AddApiTui()` registra los servicios como singleton. Terminal.Gui ya está referenciado, pero todavía no se utiliza.
 
 La separación en capas sigue prevista:
 

@@ -17,6 +17,55 @@ public sealed class ApiFolderTests
         Assert.Equal("Auth", result.Value.Name.Value);
         Assert.Same(collectionId, result.Value.CollectionId);
         Assert.Null(result.Value.ParentFolderId);
+        Assert.Empty(result.Value.Variables);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Create_Variables_PreservesOrderAndInstances(bool inFolder)
+    {
+        var first = Variable("baseUrl", "https://localhost");
+        var second = Variable("token", "secret");
+
+        var result = inFolder
+            ? ApiFolder.CreateInFolder(FolderId("folder-2"), FolderId("folder-1"), "Nested", [first, second])
+            : ApiFolder.CreateInCollection(FolderId(), CollectionId(), "Root", [first, second]);
+
+        Assert.True(result.IsSuccess);
+        Assert.Collection(result.Value.Variables,
+            item => Assert.Same(first, item),
+            item => Assert.Same(second, item));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Create_NullVariable_PropagatesVarValueListError(bool inFolder)
+    {
+        var result = inFolder
+            ? ApiFolder.CreateInFolder(FolderId("folder-2"), FolderId("folder-1"), "Nested", [null])
+            : ApiFolder.CreateInCollection(FolderId(), CollectionId(), "Root", [null]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueListItemNull, result.Error.Code);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Create_DuplicateVariable_PropagatesVarValueListError(bool inFolder)
+    {
+        var variables = new[] { Variable("token", "first"), Variable("token", "second") };
+        var result = inFolder
+            ? ApiFolder.CreateInFolder(FolderId("folder-2"), FolderId("folder-1"), "Nested", variables)
+            : ApiFolder.CreateInCollection(FolderId(), CollectionId(), "Root", variables);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueListDuplicated, result.Error.Code);
+        Assert.Equal("token", Assert.Single(result.Error.Args));
     }
 
     [Fact]
@@ -32,6 +81,19 @@ public sealed class ApiFolderTests
         Assert.Equal("OAuth", result.Value.Name.Value);
         Assert.Null(result.Value.CollectionId);
         Assert.Same(parentFolderId, result.Value.ParentFolderId);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Create_WithoutVariables_ReturnsEmptyList(bool inFolder)
+    {
+        var result = inFolder
+            ? ApiFolder.CreateInFolder(FolderId("folder-2"), FolderId("folder-1"), "Nested")
+            : ApiFolder.CreateInCollection(FolderId(), CollectionId(), "Root");
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(result.Value.Variables);
     }
 
     [Theory]
@@ -135,5 +197,14 @@ public sealed class ApiFolderTests
         var result = ApiCollectionId.Create("collection-1");
         Assert.True(result.IsSuccess);
         return result.Value;
+    }
+
+    private static VarValue Variable(string name, string value)
+    {
+        var varName = VarName.Create(name);
+        Assert.True(varName.IsSuccess);
+        var variable = VarValue.Create(varName.Value, new StringWithVars(value));
+        Assert.True(variable.IsSuccess);
+        return variable.Value;
     }
 }

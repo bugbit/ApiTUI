@@ -8,26 +8,40 @@ public sealed class ApiFolder : IEquatable<ApiFolder>
     public ItemName Name { get; }
     public ApiCollectionId? CollectionId { get; }
     public ApiFolderId? ParentFolderId { get; }
+    public IReadOnlyList<VarValue> Variables { get; }
 
-    private ApiFolder(ApiFolderId id, ItemName name, ApiCollectionId? collectionId, ApiFolderId? parentFolderId)
+    private ApiFolder(
+        ApiFolderId id,
+        ItemName name,
+        ApiCollectionId? collectionId,
+        ApiFolderId? parentFolderId,
+        IReadOnlyList<VarValue> variables)
     {
         Id = id;
         Name = name;
         CollectionId = collectionId;
         ParentFolderId = parentFolderId;
+        Variables = variables;
     }
 
-    public static Result<ApiFolder> CreateInCollection(ApiFolderId? id, ApiCollectionId? collectionId, string? name) =>
-        Create(id, collectionId, null, name);
+    public static Result<ApiFolder> CreateInCollection(
+        ApiFolderId? id,
+        ApiCollectionId? collectionId,
+        string? name,
+        IEnumerable<VarValue?>? variables = null) => Create(id, collectionId, null, name, variables);
 
-    public static Result<ApiFolder> CreateInFolder(ApiFolderId? id, ApiFolderId? parentFolderId, string? name) =>
-        Create(id, null, parentFolderId, name);
+    public static Result<ApiFolder> CreateInFolder(
+        ApiFolderId? id,
+        ApiFolderId? parentFolderId,
+        string? name,
+        IEnumerable<VarValue?>? variables = null) => Create(id, null, parentFolderId, name, variables);
 
     private static Result<ApiFolder> Create(
         ApiFolderId? id,
         ApiCollectionId? collectionId,
         ApiFolderId? parentFolderId,
-        string? name)
+        string? name,
+        IEnumerable<VarValue?>? variables)
     {
         if (id is null)
         {
@@ -50,7 +64,14 @@ public sealed class ApiFolder : IEquatable<ApiFolder>
             return Result<ApiFolder>.Failure(itemName.Error);
         }
 
-        return Result<ApiFolder>.Success(new ApiFolder(id, itemName.Value, collectionId, parentFolderId));
+        var variableList = VarValueList.Create(variables);
+        if (!variableList.IsSuccess)
+        {
+            return Result<ApiFolder>.Failure(variableList.Error);
+        }
+
+        return Result<ApiFolder>.Success(new ApiFolder(id, itemName.Value, collectionId, parentFolderId,
+            variableList.Value));
     }
 
     public bool Equals(ApiFolder? other) => other is not null && Id == other.Id;

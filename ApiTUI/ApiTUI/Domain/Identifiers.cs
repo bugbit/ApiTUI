@@ -42,3 +42,10 @@ public sealed record ApiFolderId : Identifier
 
     public static Result<ApiFolderId> Create(string? id) => Create(id, x => new ApiFolderId(x));
 }
+
+public sealed record ApiEnvironmentId : Identifier
+{
+    private ApiEnvironmentId(string id) : base(id) { }
+
+    public static Result<ApiEnvironmentId> Create(string? id) => Create(id, x => new ApiEnvironmentId(x));
+}

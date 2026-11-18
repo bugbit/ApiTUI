@@ -8,6 +8,7 @@ public static class DomainErrorCodes
     public const string ApiRequestMethodInvalid = "ApiRequest.MethodInvalid";
     public const string ApiRequestHeaderNull = "ApiRequest.HeaderNull";
     public const string ApiCollectionIdRequired = "ApiCollection.IdRequired";
+    public const string ApiEnvironmentIdRequired = "ApiEnvironment.IdRequired";
     public const string ApiFolderIdRequired = "ApiFolder.IdRequired";
     public const string ApiFolderLocationRequired = "ApiFolder.LocationRequired";
     public const string ApiFolderParentIsSelf = "ApiFolder.ParentIsSelf";
@@ -15,6 +16,8 @@ public static class DomainErrorCodes
     public const string ItemNameInvalidChars = "ItemName.InvalidChars";
     public const string ItemNameEndsWithDot = "ItemName.EndsWithDot";
     public const string ItemNameReserved = "ItemName.Reserved";
+    public const string VarValueListItemNull = "VarValueList.ItemNull";
+    public const string VarValueListDuplicated = "VarValueList.Duplicated";
     public const string HeaderNameEmpty = "HeaderName.Empty";
     public const string HeaderNameInvalidChars = "HeaderName.InvalidChars";
     public const string HeaderValueNameRequired = "HeaderValue.NameRequired";

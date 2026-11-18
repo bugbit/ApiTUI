@@ -30,6 +30,9 @@
   <data name="ApiCollection.IdRequired" xml:space="preserve">
     <value>El identificador de la colección es obligatorio.</value>
   </data>
+  <data name="ApiEnvironment.IdRequired" xml:space="preserve">
+    <value>El identificador del entorno es obligatorio.</value>
+  </data>
   <data name="ApiFolder.IdRequired" xml:space="preserve">
     <value>El identificador de la carpeta es obligatorio.</value>
   </data>
@@ -68,6 +71,12 @@
   </data>
   <data name="VarValue.NameRequired" xml:space="preserve">
     <value>El nombre de la variable es obligatorio.</value>
+  </data>
+  <data name="VarValueList.ItemNull" xml:space="preserve">
+    <value>La lista de variables no puede contener elementos nulos.</value>
+  </data>
+  <data name="VarValueList.Duplicated" xml:space="preserve">
+    <value>La variable {0} está repetida.</value>
   </data>
   <data name="Ui.Request" xml:space="preserve">
     <value>Petición: {0}</value>
