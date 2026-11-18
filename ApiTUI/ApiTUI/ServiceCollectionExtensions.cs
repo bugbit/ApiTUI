@@ -1,5 +1,6 @@
 using ApiTUI.Adapters.Identity;
 using ApiTUI.Adapters.Http;
+using ApiTUI.Adapters.Persistence;
 using ApiTUI.Application.Ports;
 using ApiTUI.Application.SendApiRequest;
 using ApiTUI.Localization;
@@ -21,6 +22,10 @@ public static class ServiceCollectionExtensions
             })
             .AddSingleton(new HttpSenderOptions(TimeSpan.FromSeconds(100)))
             .AddSingleton<IHttpSender, HttpClientSender>()
+            .AddSingleton<InMemoryApiStore>()
+            .AddSingleton<IApiEnvironmentReader>(provider => provider.GetRequiredService<InMemoryApiStore>())
+            .AddSingleton<IApiCollectionReader>(provider => provider.GetRequiredService<InMemoryApiStore>())
+            .AddSingleton<IApiFolderReader>(provider => provider.GetRequiredService<InMemoryApiStore>())
             .AddSingleton<SendApiRequestUseCase>()
             .AddSingleton<ApiTuiApp>();
     }

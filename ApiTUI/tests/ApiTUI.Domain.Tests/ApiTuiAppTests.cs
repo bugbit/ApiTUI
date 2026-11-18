@@ -1,4 +1,5 @@
 using ApiTUI.Adapters.Identity;
+using ApiTUI.Adapters.Persistence;
 using ApiTUI.Application;
 using ApiTUI.Application.Ports;
 using ApiTUI.Application.SendApiRequest;
@@ -49,7 +50,7 @@ public sealed class ApiTuiAppTests
     public async Task Run_Cancelled_PropagatesCancellation()
     {
         var sender = new FakeHttpSender(Result<HttpResponseData>.Success(new HttpResponseData(200, "OK", [], "")));
-        var app = new ApiTuiApp(new SendApiRequestUseCase(sender, TimeProvider.System), new GuidIdGenerator(), new Messages("es"));
+        var app = CreateApp(sender, "es");
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => app.RunAsync(new CancellationToken(true)));
         Assert.Empty(sender.Requests);
@@ -57,8 +58,7 @@ public sealed class ApiTuiAppTests
 
     private static async Task<string> RunAsync(FakeHttpSender sender, string language)
     {
-        var app = new ApiTuiApp(new SendApiRequestUseCase(sender, TimeProvider.System), new GuidIdGenerator(),
-            new Messages(language));
+        var app = CreateApp(sender, language);
         var originalOut = Console.Out;
         using var output = new StringWriter();
         try
@@ -72,6 +72,13 @@ public sealed class ApiTuiAppTests
         }
 
         return output.ToString();
+    }
+
+    private static ApiTuiApp CreateApp(IHttpSender sender, string language)
+    {
+        var store = new InMemoryApiStore();
+        var useCase = new SendApiRequestUseCase(sender, TimeProvider.System, store, store, store);
+        return new ApiTuiApp(useCase, new GuidIdGenerator(), new Messages(language), store);
     }
 
     private sealed class FakeHttpSender(Result<HttpResponseData> result) : IHttpSender

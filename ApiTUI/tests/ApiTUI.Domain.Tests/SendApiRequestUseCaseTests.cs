@@ -1,3 +1,4 @@
+using ApiTUI.Adapters.Persistence;
 using ApiTUI.Application;
 using ApiTUI.Application.Ports;
 using ApiTUI.Application.SendApiRequest;
@@ -12,11 +13,11 @@ public sealed class SendApiRequestUseCaseTests
     {
         var clock = new TestTimeProvider();
         var sender = new FakeHttpSender { OnSend = () => clock.Timestamp = 1250 };
-        var useCase = new SendApiRequestUseCase(sender, clock);
+        var useCase = CreateUseCase(sender, clock: clock);
         var request = Request(body: "body", headers:
             [Header("X-One", "1"), Header("X-Disabled", "ignored", false), Header("X-One", "2")]);
 
-        var result = await useCase.ExecuteAsync(request, CancellationToken.None);
+        var result = await useCase.ExecuteAsync(request, null, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         var sent = Assert.IsType<HttpRequestData>(sender.Request);
@@ -39,8 +40,8 @@ public sealed class SendApiRequestUseCaseTests
     public async Task Execute_InvalidHeaderValue_ReturnsErrorWithoutSending(string value)
     {
         var sender = new FakeHttpSender();
-        var result = await new SendApiRequestUseCase(sender, TimeProvider.System)
-            .ExecuteAsync(Request(headers: [Header("X-Test", value)]), CancellationToken.None);
+        var result = await CreateUseCase(sender)
+            .ExecuteAsync(Request(headers: [Header("X-Test", value)]), null, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
@@ -60,7 +61,7 @@ public sealed class SendApiRequestUseCaseTests
             body: location == "body" ? "{{baseUrl}}" : null,
             headers: location == "header" ? [Header("X-Test", "{{baseUrl}}")] : null);
 
-        var result = await new SendApiRequestUseCase(sender, TimeProvider.System).ExecuteAsync(request, CancellationToken.None);
+        var result = await CreateUseCase(sender).ExecuteAsync(request, null, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ApplicationErrorCodes.UnresolvedVariables, result.Error.Code);
@@ -71,8 +72,8 @@ public sealed class SendApiRequestUseCaseTests
     [Fact]
     public async Task Execute_RepeatedUnresolvedVariables_ListsEachOnceInOrder()
     {
-        var result = await new SendApiRequestUseCase(new FakeHttpSender(), TimeProvider.System).ExecuteAsync(
-            Request("{{b}}/{{a}}", "{{b}}", [Header("X-Test", "{{c}}")]), CancellationToken.None);
+        var result = await CreateUseCase(new FakeHttpSender()).ExecuteAsync(
+            Request("{{b}}/{{a}}", "{{b}}", [Header("X-Test", "{{c}}")]), null, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("b, a, c", Assert.Single(result.Error.Args));
@@ -84,8 +85,8 @@ public sealed class SendApiRequestUseCaseTests
     public async Task Execute_DisabledHeader_IgnoresVariablesAndInvalidValue(string value)
     {
         var sender = new FakeHttpSender();
-        var result = await new SendApiRequestUseCase(sender, TimeProvider.System)
-            .ExecuteAsync(Request(headers: [Header("X-Test", value, false)]), CancellationToken.None);
+        var result = await CreateUseCase(sender)
+            .ExecuteAsync(Request(headers: [Header("X-Test", value, false)]), null, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Empty(Assert.IsType<HttpRequestData>(sender.Request).Headers);
@@ -101,8 +102,8 @@ public sealed class SendApiRequestUseCaseTests
     public async Task Execute_InvalidUrl_ReturnsErrorWithoutSending(string? url, string code)
     {
         var sender = new FakeHttpSender();
-        var result = await new SendApiRequestUseCase(sender, TimeProvider.System)
-            .ExecuteAsync(Request(url), CancellationToken.None);
+        var result = await CreateUseCase(sender)
+            .ExecuteAsync(Request(url), null, CancellationToken.None);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
@@ -116,8 +117,8 @@ public sealed class SendApiRequestUseCaseTests
     public async Task Execute_EmptyBody_SendsNoContent(string? body)
     {
         var sender = new FakeHttpSender();
-        var result = await new SendApiRequestUseCase(sender, TimeProvider.System)
-            .ExecuteAsync(Request(body: body, headers: [Header("X-Empty", null)]), CancellationToken.None);
+        var result = await CreateUseCase(sender)
+            .ExecuteAsync(Request(body: body, headers: [Header("X-Empty", null)]), null, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         var sent = Assert.IsType<HttpRequestData>(sender.Request);
@@ -132,8 +133,8 @@ public sealed class SendApiRequestUseCaseTests
         var sender = new FakeHttpSender { Error = error };
         using var cancellation = new CancellationTokenSource();
 
-        var result = await new SendApiRequestUseCase(sender, TimeProvider.System)
-            .ExecuteAsync(Request(), cancellation.Token);
+        var result = await CreateUseCase(sender)
+            .ExecuteAsync(Request(), null, cancellation.Token);
 
         Assert.False(result.IsSuccess);
         Assert.Same(error, result.Error);
@@ -144,10 +145,144 @@ public sealed class SendApiRequestUseCaseTests
     public async Task Execute_AlreadyCancelled_DoesNotCallPort()
     {
         var sender = new FakeHttpSender();
-        var useCase = new SendApiRequestUseCase(sender, TimeProvider.System);
+        var useCase = CreateUseCase(sender);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => useCase.ExecuteAsync(Request(), new CancellationToken(true)));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => useCase.ExecuteAsync(Request(), null, new CancellationToken(true)));
         Assert.Null(sender.Request);
+    }
+
+    [Theory]
+    [InlineData(null, "root", true, "root")]
+    [InlineData("leaf", "root", true, "leaf")]
+    [InlineData(null, null, true, "environment")]
+    [InlineData(null, null, false, "collection")]
+    public async Task Execute_UsesBrunoPrecedence(string? leafValue, string? rootValue, bool environmentEnabled,
+        string expected)
+    {
+        var sender = new FakeHttpSender();
+        var store = new InMemoryApiStore();
+        var environment = Value(ApiEnvironment.Create(Value(ApiEnvironmentId.Create("env")), "Environment",
+            [Variable("host", "example.test"), Variable("scope", "environment", environmentEnabled)]));
+        var collection = Value(ApiCollection.Create(CollectionId(), "Collection",
+            [Variable("scope", "collection"), Variable("onlyCollection", "c")]));
+        var root = Value(ApiFolder.CreateInCollection(FolderId("root"), collection.Id, "Root",
+            [Variable("scope", rootValue, rootValue is not null), Variable("onlyRoot", "r")]));
+        var middle = Value(ApiFolder.CreateInFolder(FolderId("middle"), root.Id, "Middle", [Variable("onlyMiddle", "m")]));
+        var leaf = Value(ApiFolder.CreateInFolder(FolderId("leaf"), middle.Id, "Leaf",
+            [Variable("scope", leafValue, leafValue is not null), Variable("onlyLeaf", "l")]));
+        store.Add(environment);
+        store.Add(collection);
+        store.Add(root);
+        store.Add(middle);
+        store.Add(leaf);
+        var request = Value(ApiRequest.CreateInFolder(Value(ApiRequestId.Create("request")), leaf.Id, "Request",
+            url: new StringWithVars("https://{{host}}/{{scope}}"),
+            body: new StringWithVars("{{onlyCollection}}/{{onlyRoot}}/{{onlyMiddle}}/{{onlyLeaf}}")));
+
+        var result = await CreateUseCase(sender, store).ExecuteAsync(request, environment.Id, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var sent = Assert.IsType<HttpRequestData>(sender.Request);
+        Assert.Equal($"https://example.test/{expected}", sent.Url.AbsoluteUri);
+        Assert.Equal("c/r/m/l", sent.Body);
+    }
+
+    [Fact]
+    public async Task Execute_WithoutEnvironmentId_DoesNotUseStoredEnvironment()
+    {
+        var sender = new FakeHttpSender();
+        var store = new InMemoryApiStore();
+        store.Add(Value(ApiCollection.Create(CollectionId(), "Collection")));
+        store.Add(Value(ApiEnvironment.Create(Value(ApiEnvironmentId.Create("env")), "Environment", [Variable("host", "example.test")])));
+
+        var result = await CreateUseCase(sender, store).ExecuteAsync(Request("https://{{host}}/"), null, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ApplicationErrorCodes.UnresolvedVariables, result.Error.Code);
+        Assert.Null(sender.Request);
+    }
+
+    [Fact]
+    public async Task Execute_ValidatesResolvedHeadersAndDoesNotResolveRecursively()
+    {
+        var sender = new FakeHttpSender();
+        var store = new InMemoryApiStore();
+        store.Add(Value(ApiCollection.Create(CollectionId(), "Collection",
+            [Variable("invalid", "a\r\nb"), Variable("literal", "{{other}}"), Variable("other", "second"), Variable("empty", null)])));
+        var useCase = CreateUseCase(sender, store);
+
+        var rejected = await useCase.ExecuteAsync(Request(headers: [Header("X-Test", "{{invalid}}")]), null, CancellationToken.None);
+        Assert.False(rejected.IsSuccess);
+        Assert.Equal(ApplicationErrorCodes.HeaderValueInvalid, rejected.Error.Code);
+        Assert.Null(sender.Request);
+
+        var accepted = await useCase.ExecuteAsync(Request(body: "{{literal}}", headers: [Header("X-Test", "{{empty}}")]),
+            null, CancellationToken.None);
+        Assert.True(accepted.IsSuccess);
+        var sent = Assert.IsType<HttpRequestData>(sender.Request);
+        Assert.Equal("{{other}}", sent.Body);
+        Assert.Equal(string.Empty, Assert.Single(sent.Headers).Value);
+    }
+
+    [Theory]
+    [InlineData(ApplicationErrorCodes.EnvironmentNotFound, false, "env")]
+    [InlineData(ApplicationErrorCodes.CollectionNotFound, false, "collection")]
+    [InlineData(ApplicationErrorCodes.CollectionNotFound, true, "collection")]
+    [InlineData(ApplicationErrorCodes.FolderNotFound, true, "parent")]
+    [InlineData(ApplicationErrorCodes.FolderCycle, true, "leaf")]
+    public async Task Execute_InvalidReferences_ReturnsErrorWithoutSending(string code, bool inFolder, string expectedId)
+    {
+        var sender = new FakeHttpSender();
+        var store = new InMemoryApiStore();
+        var leafId = FolderId("leaf");
+        var parentId = FolderId("parent");
+        if (code == ApplicationErrorCodes.CollectionNotFound)
+        {
+            store.Add(Value(ApiFolder.CreateInCollection(leafId, CollectionId(), "Leaf")));
+        }
+        else if (inFolder)
+        {
+            store.Add(Value(ApiFolder.CreateInFolder(leafId, parentId, "Leaf")));
+            if (code == ApplicationErrorCodes.FolderCycle)
+            {
+                store.Add(Value(ApiFolder.CreateInFolder(parentId, leafId, "Parent")));
+            }
+        }
+
+        var request = inFolder
+            ? Value(ApiRequest.CreateInFolder(Value(ApiRequestId.Create("request")), leafId, "Request"))
+            : Request();
+        var environmentId = code == ApplicationErrorCodes.EnvironmentNotFound ? Value(ApiEnvironmentId.Create("env")) : null;
+        var result = await CreateUseCase(sender, store).ExecuteAsync(request, environmentId, CancellationToken.None);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(code, result.Error.Code);
+        Assert.Equal(expectedId, Assert.Single(result.Error.Args));
+        Assert.Null(sender.Request);
+    }
+
+    private static SendApiRequestUseCase CreateUseCase(IHttpSender sender, InMemoryApiStore? store = null, TimeProvider? clock = null)
+    {
+        if (store is null)
+        {
+            store = new InMemoryApiStore();
+            store.Add(Value(ApiCollection.Create(CollectionId(), "Collection")));
+        }
+
+        return new SendApiRequestUseCase(sender, clock ?? TimeProvider.System, store, store, store);
+    }
+
+    private static ApiCollectionId CollectionId() => Value(ApiCollectionId.Create("collection"));
+    private static ApiFolderId FolderId(string id) => Value(ApiFolderId.Create(id));
+
+    private static VarValue Variable(string name, string? value, bool enabled = true) =>
+        Value(VarValue.Create(Value(VarName.Create(name)), new StringWithVars(value), enabled));
+
+    private static T Value<T>(Result<T> result)
+    {
+        Assert.True(result.IsSuccess);
+        return result.Value;
     }
 
     private static ApiRequest Request(string? url = "https://example.test/api", string? body = null,

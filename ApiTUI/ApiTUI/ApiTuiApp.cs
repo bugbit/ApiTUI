@@ -1,3 +1,4 @@
+using ApiTUI.Adapters.Persistence;
 using ApiTUI.Application.Ports;
 using ApiTUI.Application.SendApiRequest;
 using ApiTUI.Common;
@@ -8,13 +9,14 @@ namespace ApiTUI;
 
 // Prueba provisional por consola del caso de uso de envío, hasta que exista la TUI:
 // hace un GET a una API pública de ejemplo y muestra el resultado.
-public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator idGenerator, Messages messages)
+public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator idGenerator, Messages messages, InMemoryApiStore store)
 {
     public const string SampleUrl = "https://jsonplaceholder.typicode.com/todos/1";
 
     private readonly SendApiRequestUseCase _sendApiRequest = sendApiRequest;
     private readonly IIdGenerator _idGenerator = idGenerator;
     private readonly Messages _messages = messages;
+    private readonly InMemoryApiStore _store = store;
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -28,7 +30,7 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
         }
 
         Console.WriteLine(_messages.Get(UiMessageKeys.Request, $"{request.Value.Method.ToString().ToUpperInvariant()} {SampleUrl}"));
-        var result = await _sendApiRequest.ExecuteAsync(request.Value, cancellationToken);
+        var result = await _sendApiRequest.ExecuteAsync(request.Value, null, cancellationToken);
         if (!result.IsSuccess)
         {
             WriteError(result.Error);
@@ -62,6 +64,27 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
             return Result<ApiRequest>.Failure(collectionId.Error);
         }
 
+        // La URL se guarda como variable de la colección para probar la resolución de {{url}} al enviar.
+        var urlName = VarName.Create("url");
+        if (!urlName.IsSuccess)
+        {
+            return Result<ApiRequest>.Failure(urlName.Error);
+        }
+
+        var urlVariable = VarValue.Create(urlName.Value, new StringWithVars(SampleUrl));
+        if (!urlVariable.IsSuccess)
+        {
+            return Result<ApiRequest>.Failure(urlVariable.Error);
+        }
+
+        var collection = ApiCollection.Create(collectionId.Value, "Demo", [urlVariable.Value]);
+        if (!collection.IsSuccess)
+        {
+            return Result<ApiRequest>.Failure(collection.Error);
+        }
+
+        _store.Add(collection.Value);
+
         var acceptName = HeaderName.Create("Accept");
         if (!acceptName.IsSuccess)
         {
@@ -75,7 +98,7 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
         }
 
         return ApiRequest.CreateInCollection(requestId.Value, collectionId.Value, "Prueba GET", RequestMethod.Get,
-            new StringWithVars(SampleUrl), [accept.Value]);
+            new StringWithVars("{{url}}"), [accept.Value]);
     }
 
     private void WriteError(Error error) => Console.WriteLine(_messages.Get(UiMessageKeys.RequestFailed, _messages.Format(error)));

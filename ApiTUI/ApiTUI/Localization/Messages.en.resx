@@ -120,4 +120,16 @@
   <data name="Http.RequestFailed" xml:space="preserve">
     <value>The HTTP request could not be completed: {0}.</value>
   </data>
+  <data name="SendApiRequest.EnvironmentNotFound" xml:space="preserve">
+    <value>The environment {0} does not exist.</value>
+  </data>
+  <data name="SendApiRequest.CollectionNotFound" xml:space="preserve">
+    <value>The collection {0} does not exist.</value>
+  </data>
+  <data name="SendApiRequest.FolderNotFound" xml:space="preserve">
+    <value>The folder {0} does not exist.</value>
+  </data>
+  <data name="SendApiRequest.FolderCycle" xml:space="preserve">
+    <value>The folder hierarchy contains a cycle at {0}.</value>
+  </data>
 </root>

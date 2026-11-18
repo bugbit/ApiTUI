@@ -5,6 +5,8 @@ using System.Resources;
 using System.Text;
 using System.Text.RegularExpressions;
 using ApiTUI.Common;
+using ApiTUI.Adapters.Persistence;
+using ApiTUI.Application.Ports;
 using ApiTUI.Application;
 using ApiTUI.Localization;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,6 +48,8 @@ public sealed class MessagesTests
             ApplicationErrorCodes.UrlSchemeNotSupported, ApplicationErrorCodes.HeaderInvalid,
             ApplicationErrorCodes.HeaderValueInvalid, ApplicationErrorCodes.HttpTimeout,
             ApplicationErrorCodes.HttpRequestFailed,
+            ApplicationErrorCodes.EnvironmentNotFound, ApplicationErrorCodes.CollectionNotFound,
+            ApplicationErrorCodes.FolderNotFound, ApplicationErrorCodes.FolderCycle,
             UiMessageKeys.Request, UiMessageKeys.ResponseStatus, UiMessageKeys.ResponseDuration,
             UiMessageKeys.RequestFailed,
         ];
@@ -164,7 +168,13 @@ public sealed class MessagesTests
             var builder = Host.CreateApplicationBuilder(args);
             builder.Logging.ClearProviders();
             builder.Services.AddApiTui(builder.Configuration["Language"]);
+            builder.ConfigureContainer(new DefaultServiceProviderFactory(
+                new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true }));
             using var host = builder.Build();
+            var store = host.Services.GetRequiredService<InMemoryApiStore>();
+            Assert.Same(store, host.Services.GetRequiredService<IApiEnvironmentReader>());
+            Assert.Same(store, host.Services.GetRequiredService<IApiCollectionReader>());
+            Assert.Same(store, host.Services.GetRequiredService<IApiFolderReader>());
 
             var messages = host.Services.GetRequiredService<Messages>();
             Assert.Equal(expected, messages.Language);
