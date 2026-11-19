@@ -32,6 +32,19 @@ public sealed class ApiTuiAppTests
         Assert.Contains("Duración: ", output);
         Assert.Contains("  Content-Type: application/json", output);
         Assert.Contains("""{"token":"abc"}""", output);
+        Assert.EndsWith($"Variable {ApiTuiApp.TokenVarName} = abc{Environment.NewLine}", output);
+    }
+
+    [Theory]
+    [InlineData("es", "Error al extraer token: No se ha encontrado la ruta JSON «token» en la respuesta.")]
+    [InlineData("en", "Failed to extract token: JSON path 'token' was not found in the response.")]
+    public async Task Run_ResponseWithoutToken_PrintsTranslatedVarOutErrorAndEmptyVariable(string language, string error)
+    {
+        var sender = new FakeHttpSender(new HttpResponseData(200, "OK", [], "{}"));
+
+        var output = await RunAsync(sender, language);
+
+        Assert.EndsWith($"{error}{Environment.NewLine}Variable {ApiTuiApp.TokenVarName} = {Environment.NewLine}", output);
     }
 
     [Fact]
@@ -46,6 +59,7 @@ public sealed class ApiTuiAppTests
         Assert.Contains("Error: ", output);
         Assert.Contains("NameResolutionError", output);
         Assert.DoesNotContain("Status:", output);
+        Assert.DoesNotContain($"Variable {ApiTuiApp.TokenVarName} =", output);
     }
 
     [Fact]

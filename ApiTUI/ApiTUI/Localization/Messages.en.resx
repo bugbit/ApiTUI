@@ -150,4 +150,10 @@
   <data name="VarOut.SaveFailed" xml:space="preserve">
     <value>The value extracted from the response could not be saved.</value>
   </data>
+  <data name="Ui.VariableValue" xml:space="preserve">
+    <value>Variable {0} = {1}</value>
+  </data>
+  <data name="Ui.VarOutFailed" xml:space="preserve">
+    <value>Failed to extract {0}: {1}</value>
+  </data>
 </root>

@@ -9,4 +9,6 @@ public static class UiMessageKeys
     public const string ResponseHeaders = "Ui.ResponseHeaders";
     public const string ResponseBody = "Ui.ResponseBody";
     public const string RequestFailed = "Ui.RequestFailed";
+    public const string VariableValue = "Ui.VariableValue";
+    public const string VarOutFailed = "Ui.VarOutFailed";
 }

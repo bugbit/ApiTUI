@@ -16,4 +16,9 @@ public sealed class GuidIdGenerator : IIdGenerator
     {
         return ApiCollectionId.Create(Guid.NewGuid().ToString("N"));
     }
+
+    public Result<ApiEnvironmentId> NextApiEnvironmentId()
+    {
+        return ApiEnvironmentId.Create(Guid.NewGuid().ToString("N"));
+    }
 }

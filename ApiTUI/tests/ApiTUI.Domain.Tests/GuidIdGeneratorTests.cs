@@ -23,6 +23,14 @@ public sealed class GuidIdGeneratorTests
     }
 
     [Fact]
+    public void NextApiEnvironmentId_ReturnsGuidInNFormat()
+    {
+        var result = _generator.NextApiEnvironmentId();
+
+        Assert.True(Guid.TryParseExact(result.AssertSuccess().Id, "N", out _));
+    }
+
+    [Fact]
     public void NextApiRequestId_RepeatedCalls_ReturnsDistinctIds()
     {
         var ids = Enumerable.Range(0, 1000)
@@ -43,6 +51,16 @@ public sealed class GuidIdGeneratorTests
             .ToList();
 
         Assert.DoesNotContain(null, ids);
+        Assert.Equal(ids.Count, ids.Distinct().Count());
+    }
+
+    [Fact]
+    public void NextApiEnvironmentId_RepeatedCalls_ReturnsDistinctIds()
+    {
+        var ids = Enumerable.Range(0, 1000)
+            .Select(_ => _generator.NextApiEnvironmentId().AssertSuccess().Id)
+            .ToList();
+
         Assert.Equal(ids.Count, ids.Distinct().Count());
     }
 }

@@ -8,4 +8,5 @@ public interface IIdGenerator
 {
     Result<ApiRequestId> NextApiRequestId();
     Result<ApiCollectionId> NextApiCollectionId();
+    Result<ApiEnvironmentId> NextApiEnvironmentId();
 }

@@ -14,6 +14,8 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
     public const string BaseUrl = "http://localhost:5080";
     public const string LoginUrl = BaseUrl + "/login";
     public const string LoginBody = """{"username":"user2","password":"user2"}""";
+    public const string TokenVarName = "token";
+    public const string TokenVarOut = "{{response.json.token}}";
 
     private readonly SendApiRequestUseCase _sendApiRequest = sendApiRequest;
     private readonly IIdGenerator _idGenerator = idGenerator;
@@ -24,16 +26,16 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var requestResult = CreateSampleRequest();
-        if (requestResult is Error requestError)
+        var sampleResult = PrepareSampleLogin();
+        if (sampleResult is Error requestError)
         {
             WriteError(requestError);
             return;
         }
 
-        var request = (ApiRequest)requestResult.Value;
+        var (request, environmentId) = (SampleLogin)sampleResult.Value;
         Console.WriteLine(_messages.Get(UiMessageKeys.Request, $"{request.Method.ToString().ToUpperInvariant()} {LoginUrl}"));
-        var result = await _sendApiRequest.ExecuteAsync(request, null, cancellationToken);
+        var result = await _sendApiRequest.ExecuteAsync(request, environmentId, cancellationToken);
         if (result is Error resultError)
         {
             WriteError(resultError);
@@ -51,9 +53,18 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
 
         Console.WriteLine(_messages.Get(UiMessageKeys.ResponseBody));
         Console.WriteLine(response.Body);
+
+        foreach (var (name, error) in response.VarOutErrors)
+        {
+            Console.WriteLine(_messages.Get(UiMessageKeys.VarOutFailed, name.Value, _messages.Format(error)));
+        }
+
+        var environment = await _store.FindAsync(environmentId, cancellationToken);
+        var token = environment?.Variables.FirstOrDefault(variable => variable.Name.Value == TokenVarName);
+        Console.WriteLine(_messages.Get(UiMessageKeys.VariableValue, TokenVarName, token?.Value.Text ?? string.Empty));
     }
 
-    private Result<ApiRequest> CreateSampleRequest()
+    private Result<SampleLogin> PrepareSampleLogin()
     {
         var requestId = _idGenerator.NextApiRequestId();
         if (requestId is Error requestIdError)
@@ -65,6 +76,12 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
         if (collectionId is Error collectionIdError)
         {
             return collectionIdError;
+        }
+
+        var environmentId = _idGenerator.NextApiEnvironmentId();
+        if (environmentId is Error environmentIdError)
+        {
+            return environmentIdError;
         }
 
         // La URL se guarda como variable de la colección para probar la resolución de {{url}} al enviar.
@@ -86,7 +103,29 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
             return collectionError;
         }
 
-        _store.Add((ApiCollection)collection.Value);
+        var tokenName = VarName.Create(TokenVarName);
+        if (tokenName is Error tokenNameError)
+        {
+            return tokenNameError;
+        }
+
+        var tokenVariable = VarValue.Create((VarName)tokenName.Value, new StringWithVars(string.Empty));
+        if (tokenVariable is Error tokenVariableError)
+        {
+            return tokenVariableError;
+        }
+
+        var environment = ApiEnvironment.Create((ApiEnvironmentId)environmentId.Value, "Demo", [(VarValue)tokenVariable.Value]);
+        if (environment is Error environmentError)
+        {
+            return environmentError;
+        }
+
+        var tokenVarOut = VarValue.Create((VarName)tokenName.Value, new StringWithVars(TokenVarOut));
+        if (tokenVarOut is Error tokenVarOutError)
+        {
+            return tokenVarOutError;
+        }
 
         var accept = CreateJsonHeader("Accept");
         if (accept is Error acceptError)
@@ -100,8 +139,17 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
             return contentTypeError;
         }
 
-        return ApiRequest.CreateInCollection((ApiRequestId)requestId.Value, (ApiCollectionId)collectionId.Value, "Login",
-            RequestMethod.Post, new StringWithVars("{{url}}/login"), [(HeaderValue)accept.Value, (HeaderValue)contentType.Value], new StringWithVars(LoginBody));
+        var request = ApiRequest.CreateInCollection((ApiRequestId)requestId.Value, (ApiCollectionId)collectionId.Value, "Login",
+            RequestMethod.Post, new StringWithVars("{{url}}/login"), [(HeaderValue)accept.Value, (HeaderValue)contentType.Value],
+            new StringWithVars(LoginBody), varsOut: [(VarValue)tokenVarOut.Value]);
+        if (request is Error requestError)
+        {
+            return requestError;
+        }
+
+        _store.Add((ApiCollection)collection.Value);
+        _store.Add((ApiEnvironment)environment.Value);
+        return new SampleLogin((ApiRequest)request.Value, (ApiEnvironmentId)environmentId.Value);
     }
 
     private static Result<HeaderValue> CreateJsonHeader(string name)
@@ -114,4 +162,6 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
     }
 
     private void WriteError(Error error) => Console.WriteLine(_messages.Get(UiMessageKeys.RequestFailed, _messages.Format(error)));
+
+    private sealed record SampleLogin(ApiRequest Request, ApiEnvironmentId EnvironmentId);
 }

@@ -60,12 +60,14 @@ public sealed class MessagesTests
         {
             var spanishFormat = CompositeFormat.Parse(template);
             var englishFormat = CompositeFormat.Parse(english[code]);
-            string[] expectedMarkers = withArgument.Contains(code) ? ["0"] : [];
+            string[] expectedMarkers = code is UiMessageKeys.VariableValue or UiMessageKeys.VarOutFailed
+                ? ["0", "1"]
+                : withArgument.Contains(code) ? ["0"] : [];
             Assert.Equal(expectedMarkers, Markers(template));
             Assert.Equal(expectedMarkers, Markers(english[code]));
             Assert.Equal(expectedMarkers.Length, spanishFormat.MinimumArgumentCount);
             Assert.Equal(expectedMarkers.Length, englishFormat.MinimumArgumentCount);
-            var args = withArgument.Contains(code) ? new object[] { "sample" } : [];
+            var args = Enumerable.Repeat<object>("sample", expectedMarkers.Length).ToArray();
             Assert.NotEmpty(new Messages("es").Format(new Error(ErrorsReasons.InvalidInput, code, args)));
             Assert.NotEmpty(new Messages("en").Format(new Error(ErrorsReasons.InvalidInput, code, args)));
         }
