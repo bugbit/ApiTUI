@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ApiTUI.Application.Ports;
 using ApiTUI.Common;
 using ApiTUI.Domain;
@@ -9,13 +10,19 @@ public sealed class SendApiRequestUseCase(
     TimeProvider timeProvider,
     IApiEnvironmentReader environmentReader,
     IApiCollectionReader collectionReader,
-    IApiFolderReader folderReader)
+    IApiFolderReader folderReader,
+    IApiEnvironmentWriter environmentWriter,
+    IApiCollectionWriter collectionWriter,
+    IApiFolderWriter folderWriter)
 {
     private readonly IHttpSender _httpSender = httpSender;
     private readonly TimeProvider _timeProvider = timeProvider;
     private readonly IApiEnvironmentReader _environmentReader = environmentReader;
     private readonly IApiCollectionReader _collectionReader = collectionReader;
     private readonly IApiFolderReader _folderReader = folderReader;
+    private readonly IApiEnvironmentWriter _environmentWriter = environmentWriter;
+    private readonly IApiCollectionWriter _collectionWriter = collectionWriter;
+    private readonly IApiFolderWriter _folderWriter = folderWriter;
 
     public async Task<Result<ApiResponse>> ExecuteAsync(
         ApiRequest request, ApiEnvironmentId? environmentId, CancellationToken cancellationToken)
@@ -30,7 +37,7 @@ public sealed class SendApiRequestUseCase(
             return loadedError;
         }
 
-        var variables = (Dictionary<VarName, object?>)loaded.Value;
+        var (variables, scopes) = (LoadedVariables)loaded.Value;
         var unresolved = request.Url.GetVarNames().Concat(request.Body.GetVarNames())
             .Concat(request.Headers.Where(header => header.Enabled).SelectMany(header => header.Value.GetVarNames()))
             .Where(name => !variables.ContainsKey(name)).Distinct().ToArray();
@@ -78,14 +85,131 @@ public sealed class SendApiRequestUseCase(
         }
 
         var response = (HttpResponseData)result.Value;
-        return new ApiResponse(response.StatusCode, response.ReasonPhrase, response.Headers,
+        var apiResponse = new ApiResponse(response.StatusCode, response.ReasonPhrase, response.Headers,
             response.Body, _timeProvider.GetElapsedTime(start));
+        if (request.VarsOut is not { Count: > 0 } varsOut)
+        {
+            return apiResponse;
+        }
+
+        return await ApplyVarsOutAsync(apiResponse, varsOut, variables, scopes, cancellationToken);
     }
 
-    private async Task<Result<Dictionary<VarName, object?>>> LoadVariablesAsync(
+    private async Task<ApiResponse> ApplyVarsOutAsync(ApiResponse response, IReadOnlyList<VarValue> varsOut,
+        IReadOnlyDictionary<VarName, object?> variables, IReadOnlyDictionary<VarName, Identifier> scopes,
+        CancellationToken cancellationToken)
+    {
+        var errors = new List<VarOutError>();
+        var batches = new Dictionary<Identifier, List<VarValue>>();
+        var json = new Lazy<JsonDocument?>(() => ParseJson(response.Body));
+        try
+        {
+            foreach (var variable in varsOut)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!variable.Enabled)
+                {
+                    continue;
+                }
+
+                if (!scopes.TryGetValue(variable.Name, out var scope))
+                {
+                    errors.Add(TargetNotFound(variable.Name));
+                    continue;
+                }
+
+                var evaluated = ResponseVarExtractor.Evaluate(variable.Value, response.Body, json, variables);
+                if (evaluated is Error error)
+                {
+                    errors.Add(new VarOutError(variable.Name, error));
+                    continue;
+                }
+
+                if (!batches.TryGetValue(scope, out var batch))
+                {
+                    batch = [];
+                    batches.Add(scope, batch);
+                }
+
+                batch.Add(variable.WithValue(new StringWithVars((string)evaluated.Value)));
+            }
+        }
+        finally
+        {
+            if (json.IsValueCreated)
+            {
+                json.Value?.Dispose();
+            }
+        }
+
+        var assigned = new List<VarValue>();
+        foreach (var (scope, batch) in batches)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var values = batch.ToDictionary(variable => variable.Name, variable => variable.Value);
+            var saved = await SaveVarsOutAsync(scope, values, cancellationToken);
+            if (saved is Error error)
+            {
+                errors.AddRange(batch.Select(variable => new VarOutError(variable.Name, error)));
+                continue;
+            }
+
+            var missing = ((IReadOnlyList<VarName>)saved.Value).ToHashSet();
+            foreach (var variable in batch)
+            {
+                if (missing.Contains(variable.Name))
+                {
+                    errors.Add(TargetNotFound(variable.Name));
+                }
+                else
+                {
+                    assigned.Add(variable);
+                }
+            }
+        }
+
+        return response with { AssignedVars = assigned.AsReadOnly(), VarOutErrors = errors.AsReadOnly() };
+    }
+
+    private async Task<Result<IReadOnlyList<VarName>>> SaveVarsOutAsync(Identifier scope,
+        IReadOnlyDictionary<VarName, StringWithVars> values, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return scope switch
+            {
+                ApiCollectionId id => await _collectionWriter.UpdateVariablesAsync(id, values, cancellationToken),
+                ApiEnvironmentId id => await _environmentWriter.UpdateVariablesAsync(id, values, cancellationToken),
+                ApiFolderId id => await _folderWriter.UpdateVariablesAsync(id, values, cancellationToken),
+                _ => throw new InvalidOperationException(),
+            };
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return new Error(ErrorsReasons.PersistenceFailure, ApplicationErrorCodes.VarOutSaveFailed);
+        }
+    }
+
+    private static JsonDocument? ParseJson(string body)
+    {
+        try
+        {
+            return JsonDocument.Parse(body);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static VarOutError TargetNotFound(VarName name) =>
+        new(name, new Error(ErrorsReasons.InvalidInput, ApplicationErrorCodes.VarOutTargetNotFound, name.Value));
+
+    private async Task<Result<LoadedVariables>> LoadVariablesAsync(
         ApiRequest request, ApiEnvironmentId? environmentId, CancellationToken cancellationToken)
     {
         var variables = new Dictionary<VarName, object?>();
+        var scopes = new Dictionary<VarName, Identifier>();
         ApiEnvironment? environment = null;
         if (environmentId is not null)
         {
@@ -139,32 +263,36 @@ public sealed class SendApiRequestUseCase(
 
         // Precedencia como en Bruno (gana lo aplicado después):
         // colección < entorno < carpeta raíz < ... < carpeta de la petición.
-        Apply(collection.Variables);
+        Apply(collection.Id, collection.Variables);
         if (environment is not null)
         {
-            Apply(environment.Variables);
+            Apply(environment.Id, environment.Variables);
         }
 
         chain.Reverse();
         foreach (var folder in chain)
         {
-            Apply(folder.Variables);
+            Apply(folder.Id, folder.Variables);
         }
 
-        return variables;
+        return new LoadedVariables(variables, scopes);
 
-        void Apply(IReadOnlyList<VarValue> scope)
+        void Apply(Identifier scope, IReadOnlyList<VarValue> values)
         {
-            foreach (var variable in scope)
+            foreach (var variable in values)
             {
                 if (variable.Enabled)
                 {
                     variables[variable.Name] = variable.Value.Text;
+                    scopes[variable.Name] = scope;
                 }
             }
         }
     }
 
-    private static Result<Dictionary<VarName, object?>> Missing(string code, string id) =>
+    private static Result<LoadedVariables> Missing(string code, string id) =>
         new Error(ErrorsReasons.InvalidInput, code, id);
+
+    private sealed record LoadedVariables(
+        IReadOnlyDictionary<VarName, object?> Values, IReadOnlyDictionary<VarName, Identifier> Scopes);
 }

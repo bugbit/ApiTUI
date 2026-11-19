@@ -74,6 +74,13 @@ public sealed class ApiFolder : IEquatable<ApiFolder>
             (IReadOnlyList<VarValue>)variableList.Value);
     }
 
+    public (ApiFolder Entity, IReadOnlyList<VarName> Missing) WithVariableValues(
+        IReadOnlyDictionary<VarName, StringWithVars> values)
+    {
+        var replacement = VarValueList.ReplaceValues(Variables, values);
+        return (new ApiFolder(Id, Name, CollectionId, ParentFolderId, replacement.Variables), replacement.Missing);
+    }
+
     public bool Equals(ApiFolder? other) => other is not null && Id == other.Id;
 
     public override bool Equals(object? obj) => Equals(obj as ApiFolder);

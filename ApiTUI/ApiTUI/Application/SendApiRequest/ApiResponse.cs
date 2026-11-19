@@ -1,3 +1,5 @@
+using ApiTUI.Domain;
+
 namespace ApiTUI.Application.SendApiRequest;
 
 public sealed record ApiResponse(
@@ -5,4 +7,8 @@ public sealed record ApiResponse(
     string? ReasonPhrase,
     IReadOnlyList<KeyValuePair<string, string>> Headers,
     string Body,
-    TimeSpan Duration);
+    TimeSpan Duration)
+{
+    public IReadOnlyList<VarValue> AssignedVars { get; init; } = [];
+    public IReadOnlyList<VarOutError> VarOutErrors { get; init; } = [];
+}

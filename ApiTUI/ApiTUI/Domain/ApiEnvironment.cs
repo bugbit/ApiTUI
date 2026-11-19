@@ -40,6 +40,13 @@ public sealed class ApiEnvironment : IEquatable<ApiEnvironment>
         return new ApiEnvironment(id, (ItemName)itemName.Value, (IReadOnlyList<VarValue>)variableList.Value);
     }
 
+    public (ApiEnvironment Entity, IReadOnlyList<VarName> Missing) WithVariableValues(
+        IReadOnlyDictionary<VarName, StringWithVars> values)
+    {
+        var replacement = VarValueList.ReplaceValues(Variables, values);
+        return (new ApiEnvironment(Id, Name, replacement.Variables), replacement.Missing);
+    }
+
     public bool Equals(ApiEnvironment? other) => other is not null && Id == other.Id;
 
     public override bool Equals(object? obj) => Equals(obj as ApiEnvironment);

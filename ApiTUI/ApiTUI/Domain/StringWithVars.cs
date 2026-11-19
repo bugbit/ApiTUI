@@ -1,12 +1,13 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using ApiTUI.Common;
 
 namespace ApiTUI.Domain;
 
 public sealed partial record StringWithVars(string? Text)
 {
     // Captura cualquier contenido entre {{ y }}; VarName.Create decide si es un nombre válido.
-    [GeneratedRegex(@"\{\{([^{}]+)\}\}")]
+    [GeneratedRegex(@"\{\{([^{}]*)\}\}")]
     private static partial Regex VarPattern();
 
     public IReadOnlyList<VarName> GetVarNames()
@@ -28,6 +29,27 @@ public sealed partial record StringWithVars(string? Text)
         }
 
         return names.AsReadOnly();
+    }
+
+    public IReadOnlyList<string> GetInvalidPlaceholders()
+    {
+        if (string.IsNullOrEmpty(Text))
+        {
+            return [];
+        }
+
+        var invalid = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match match in VarPattern().Matches(Text))
+        {
+            var content = match.Groups[1].Value;
+            if (VarName.Create(content) is Error && seen.Add(content))
+            {
+                invalid.Add(content);
+            }
+        }
+
+        return invalid.AsReadOnly();
     }
 
     public string? Resolve(IReadOnlyDictionary<VarName, object?> variables)

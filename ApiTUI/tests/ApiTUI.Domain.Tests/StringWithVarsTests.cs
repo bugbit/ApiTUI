@@ -21,6 +21,23 @@ public sealed class StringWithVarsTests
     [Theory]
     [InlineData(null)]
     [InlineData("")]
+    [InlineData("plain text {{valid}}/{{valid.name}}")]
+    public void GetInvalidPlaceholders_WithoutInvalidMarkers_ReturnsEmpty(string? text)
+    {
+        Assert.Empty(new StringWithVars(text).GetInvalidPlaceholders());
+    }
+
+    [Fact]
+    public void GetInvalidPlaceholders_ReturnsDistinctInvalidContentsInOrder()
+    {
+        var text = new StringWithVars("{{valid}}{{ response }}{{a$b}}{{ response }}{{}}{{café}}{{also-valid}}{{}}");
+
+        Assert.Equal(new[] { " response ", "a$b", "", "café" }, text.GetInvalidPlaceholders());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
     [InlineData("Texto sin marcadores")]
     public void Resolve_WithoutMarkers_PreservesText(string? text)
     {

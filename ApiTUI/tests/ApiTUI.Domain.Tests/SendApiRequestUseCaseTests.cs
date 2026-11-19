@@ -258,7 +258,195 @@ public sealed class SendApiRequestUseCaseTests
         Assert.Null(sender.Request);
     }
 
-    private static SendApiRequestUseCase CreateUseCase(IHttpSender sender, InMemoryApiStore? store = null, TimeProvider? clock = null)
+    [Fact]
+    public async Task Execute_VarsOut_UpdatesWinningScopesAndRetainsLiteralMarkerText()
+    {
+        var store = new InMemoryApiStore();
+        var environmentId = ApiEnvironmentId.Create("scope").AssertSuccess();
+        var folderId = FolderId("scope");
+        var collectionId = ApiCollectionId.Create("scope").AssertSuccess();
+        store.Add(ApiCollection.Create(collectionId, "Collection",
+            [Variable("token", "collection"), Variable("collectionOnly", "old")]).AssertSuccess());
+        store.Add(ApiEnvironment.Create(environmentId, "Environment",
+            [Variable("token", "environment"), Variable("environmentOnly", "old")]).AssertSuccess());
+        store.Add(ApiFolder.CreateInCollection(folderId, collectionId, "Folder",
+            [Variable("token", "folder")]).AssertSuccess());
+        var request = ApiRequest.CreateInFolder(ApiRequestId.Create("request").AssertSuccess(), folderId, "Request",
+            url: new StringWithVars("https://example.test"),
+            varsOut: [Variable("token", "{{response.json.token}}"), Variable("environmentOnly", "environment new"),
+                Variable("collectionOnly", "collection new")]).AssertSuccess();
+        var sender = new FakeHttpSender { Response = new(200, "OK", [], """{"token":"{{later}}"}""") };
+
+        var response = (await CreateUseCase(sender, store).ExecuteAsync(request, environmentId, CancellationToken.None)).AssertSuccess();
+
+        var collection = Assert.IsType<ApiCollection>(await store.FindAsync(collectionId, CancellationToken.None));
+        var environment = Assert.IsType<ApiEnvironment>(await store.FindAsync(environmentId, CancellationToken.None));
+        var folder = Assert.IsType<ApiFolder>(await store.FindAsync(folderId, CancellationToken.None));
+        Assert.Equal(new[] { "collection", "collection new" }, collection.Variables.Select(v => v.Value.Text));
+        Assert.Equal(new[] { "environment", "environment new" }, environment.Variables.Select(v => v.Value.Text));
+        var token = Assert.Single(folder.Variables);
+        Assert.Equal("{{later}}", token.Value.Text);
+        Assert.Equal("later", Assert.Single(token.Value.GetVarNames()).Value);
+        Assert.Equal(new[] { "token", "environmentOnly", "collectionOnly" }, response.AssignedVars.Select(v => v.Name.Value));
+        Assert.Empty(response.VarOutErrors);
+    }
+
+    [Fact]
+    public async Task Execute_VarsOut_UsesEnvironmentValueLoadedBeforeHttpAndSavesToCollection()
+    {
+        var store = new InMemoryApiStore();
+        var environmentId = ApiEnvironmentId.Create("env").AssertSuccess();
+        store.Add(ApiCollection.Create(CollectionId(), "Collection", [Variable("token", "old")]).AssertSuccess());
+        store.Add(ApiEnvironment.Create(environmentId, "Environment", [Variable("suffix", "original")]).AssertSuccess());
+        var sender = new FakeHttpSender
+        {
+            Response = new(200, "OK", [], """{"token":"new"}"""),
+            OnSend = () => store.Add(ApiEnvironment.Create(environmentId, "Environment",
+                [Variable("suffix", "changed")]).AssertSuccess()),
+        };
+        var request = Request(body: "{{suffix}}", varsOut: [Variable("token", "{{response.json.token}}_{{suffix}}")]);
+
+        var result = await CreateUseCase(sender, store).ExecuteAsync(request, environmentId, CancellationToken.None);
+
+        var response = result.AssertSuccess();
+        Assert.Equal("original", Assert.IsType<HttpRequestData>(sender.Request).Body);
+        Assert.Empty(response.VarOutErrors);
+        Assert.Equal("new_original", Assert.Single(response.AssignedVars).Value.Text);
+        var collection = Assert.IsType<ApiCollection>(await store.FindAsync(CollectionId(), CancellationToken.None));
+        Assert.Equal("new_original", Assert.Single(collection.Variables).Value.Text);
+    }
+
+    [Fact]
+    public async Task Execute_VarsOut_BatchesSuccessfulAssignmentsForNonSuccessStatusAndReportsErrors()
+    {
+        var store = new InMemoryApiStore();
+        store.Add(ApiCollection.Create(CollectionId(), "Collection",
+            [Variable("first", "old"), Variable("second", "old"), Variable("json", "old")]).AssertSuccess());
+        var writer = new TrackingCollectionWriter(store.UpdateVariablesAsync);
+        var sender = new FakeHttpSender { Response = new(422, "Unprocessable Content", [], "not JSON") };
+        var request = Request(varsOut: [Variable("missing", "{{response}}"), Variable("json", "{{response.json.token}}"),
+            Variable("first", "{{response}}"), Variable("ignored", "{{unsupported}}", enabled: false),
+            Variable("second", "prefix {{response}}")]);
+        using var cancellation = new CancellationTokenSource();
+
+        var response = (await CreateUseCase(sender, store, collectionWriter: writer)
+            .ExecuteAsync(request, null, cancellation.Token)).AssertSuccess();
+
+        Assert.Equal(422, response.StatusCode);
+        Assert.Equal(new[] { "first", "second" }, response.AssignedVars.Select(v => v.Name.Value));
+        Assert.Equal(new[] { "not JSON", "prefix not JSON" }, response.AssignedVars.Select(v => v.Value.Text));
+        Assert.Collection(response.VarOutErrors,
+            error => AssertVarOutError(error, "missing", ApplicationErrorCodes.VarOutTargetNotFound),
+            error => AssertVarOutError(error, "json", ApplicationErrorCodes.VarOutResponseNotJson));
+        Assert.Equal(new[] { "first", "second" }, Assert.Single(writer.Batches).Keys.Select(name => name.Value));
+        Assert.Equal(cancellation.Token, writer.Token);
+        var current = Assert.IsType<ApiCollection>(await store.FindAsync(CollectionId(), CancellationToken.None));
+        Assert.Equal(new[] { "not JSON", "prefix not JSON", "old" }, current.Variables.Select(v => v.Value.Text));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Execute_EmptyOrNullVarsOut_DoesNotWrite(bool empty)
+    {
+        var writer = new TrackingCollectionWriter((_, _, _) => throw new InvalidOperationException());
+
+        var response = (await CreateUseCase(new FakeHttpSender(), collectionWriter: writer)
+            .ExecuteAsync(Request(varsOut: empty ? [] : null), null, CancellationToken.None)).AssertSuccess();
+
+        Assert.Empty(writer.Batches);
+        Assert.Empty(response.AssignedVars);
+        Assert.Empty(response.VarOutErrors);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Execute_VarsOut_TargetChangedDuringHttp_ReportsMissingAndSavesRemaining(bool disabled)
+    {
+        var store = new InMemoryApiStore();
+        var kept = Variable("kept", "initial");
+        var target = Variable("target", "old");
+        store.Add(ApiCollection.Create(CollectionId(), "Initial", [target, kept]).AssertSuccess());
+        var sender = new FakeHttpSender
+        {
+            OnSend = () => store.Add(ApiCollection.Create(CollectionId(), "Current",
+                disabled ? [target with { Enabled = false }, kept] : [kept]).AssertSuccess()),
+        };
+        var request = Request(varsOut: [Variable("target", "new target"), Variable("kept", "new kept")]);
+
+        var response = (await CreateUseCase(sender, store).ExecuteAsync(request, null, CancellationToken.None)).AssertSuccess();
+
+        AssertVarOutError(Assert.Single(response.VarOutErrors), "target", ApplicationErrorCodes.VarOutTargetNotFound);
+        Assert.Equal("kept", Assert.Single(response.AssignedVars).Name.Value);
+        var stored = Assert.IsType<ApiCollection>(await store.FindAsync(CollectionId(), CancellationToken.None));
+        Assert.Equal("Current", stored.Name.Value);
+        Assert.Equal(disabled ? new[] { "old", "new kept" } : new[] { "new kept" }, stored.Variables.Select(v => v.Value.Text));
+    }
+
+    [Theory]
+    [InlineData(ApplicationErrorCodes.CollectionNotFound)]
+    [InlineData(ApplicationErrorCodes.VarOutSaveFailed)]
+    public async Task Execute_VarsOut_WriteFailureReportsEveryVariableAndContinuesWithOtherScopes(string code)
+    {
+        var store = new InMemoryApiStore();
+        store.Add(ApiCollection.Create(CollectionId(), "Collection",
+            [Variable("first", "old"), Variable("second", "old")]).AssertSuccess());
+        var environmentId = ApiEnvironmentId.Create("env").AssertSuccess();
+        store.Add(ApiEnvironment.Create(environmentId, "Environment", [Variable("third", "old")]).AssertSuccess());
+        var writer = new TrackingCollectionWriter((_, _, _) => code == ApplicationErrorCodes.VarOutSaveFailed
+            ? throw new IOException()
+            : Task.FromResult<Result<IReadOnlyList<VarName>>>(new Error(ErrorsReasons.InvalidInput, code, "collection")));
+
+        var response = (await CreateUseCase(new FakeHttpSender(), store, collectionWriter: writer)
+            .ExecuteAsync(Request(varsOut: [Variable("first", "new"), Variable("second", "new"), Variable("third", "new")]),
+                environmentId, CancellationToken.None)).AssertSuccess();
+
+        Assert.Collection(response.VarOutErrors,
+            error => AssertVarOutError(error, "first", code),
+            error => AssertVarOutError(error, "second", code));
+        Assert.Equal("third", Assert.Single(response.AssignedVars).Name.Value);
+    }
+
+    [Fact]
+    public async Task Execute_VarsOut_WriteCancellationPropagates()
+    {
+        var store = new InMemoryApiStore();
+        store.Add(ApiCollection.Create(CollectionId(), "Collection", [Variable("token", "old")]).AssertSuccess());
+        var writer = new TrackingCollectionWriter((_, _, token) => throw new OperationCanceledException(token));
+        var useCase = CreateUseCase(new FakeHttpSender(), store, collectionWriter: writer);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => useCase.ExecuteAsync(
+            Request(varsOut: [Variable("token", "{{response}}")]), null, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Execute_ConcurrentVarsOut_FromSameInitialCollection_PreserveBothAssignments()
+    {
+        var store = new InMemoryApiStore();
+        store.Add(ApiCollection.Create(CollectionId(), "Collection",
+            [Variable("token", "old"), Variable("id", "old")]).AssertSuccess());
+        var sender = new BarrierHttpSender();
+        var useCase = CreateUseCase(sender, store);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+        var first = useCase.ExecuteAsync(Request(varsOut: [Variable("token", "new token")]), null, cancellation.Token);
+        var second = useCase.ExecuteAsync(Request(varsOut: [Variable("id", "new id")]), null, cancellation.Token);
+        var responses = await Task.WhenAll(first, second);
+
+        Assert.All(responses, result => Assert.Empty(result.AssertSuccess().VarOutErrors));
+        var stored = Assert.IsType<ApiCollection>(await store.FindAsync(CollectionId(), CancellationToken.None));
+        Assert.Equal(new[] { "new token", "new id" }, stored.Variables.Select(v => v.Value.Text));
+    }
+
+    private static void AssertVarOutError(VarOutError error, string name, string code)
+    {
+        Assert.Equal(name, error.Name.Value);
+        Assert.Equal(code, error.Error.Code);
+    }
+
+    private static SendApiRequestUseCase CreateUseCase(IHttpSender sender, InMemoryApiStore? store = null,
+        TimeProvider? clock = null, IApiCollectionWriter? collectionWriter = null)
     {
         if (store is null)
         {
@@ -266,7 +454,8 @@ public sealed class SendApiRequestUseCaseTests
             store.Add(ApiCollection.Create(CollectionId(), "Collection").AssertSuccess());
         }
 
-        return new SendApiRequestUseCase(sender, clock ?? TimeProvider.System, store, store, store);
+        return new SendApiRequestUseCase(sender, clock ?? TimeProvider.System, store, store, store,
+            store, collectionWriter ?? store, store);
     }
 
     private static ApiCollectionId CollectionId() => ApiCollectionId.Create("collection").AssertSuccess();
@@ -277,12 +466,12 @@ public sealed class SendApiRequestUseCaseTests
 
 
     private static ApiRequest Request(string? url = "https://example.test/api", string? body = null,
-        IEnumerable<HeaderValue?>? headers = null)
+        IEnumerable<HeaderValue?>? headers = null, IEnumerable<VarValue?>? varsOut = null)
     {
         var id = ApiRequestId.Create("request");
         var collection = ApiCollectionId.Create("collection");
         var result = ApiRequest.CreateInCollection(id.AssertSuccess(), collection.AssertSuccess(), "Request", RequestMethod.Post,
-            new StringWithVars(url), headers, new StringWithVars(body));
+            new StringWithVars(url), headers, new StringWithVars(body), varsOut);
         return result.AssertSuccess();
     }
 
@@ -300,13 +489,49 @@ public sealed class SendApiRequestUseCaseTests
         public override long GetTimestamp() => Timestamp;
     }
 
+    private sealed class TrackingCollectionWriter(
+        Func<ApiCollectionId, IReadOnlyDictionary<VarName, StringWithVars>, CancellationToken,
+            Task<Result<IReadOnlyList<VarName>>>> update) : IApiCollectionWriter
+    {
+        private readonly Func<ApiCollectionId, IReadOnlyDictionary<VarName, StringWithVars>, CancellationToken,
+            Task<Result<IReadOnlyList<VarName>>>> _update = update;
+
+        public List<IReadOnlyDictionary<VarName, StringWithVars>> Batches { get; } = [];
+        public CancellationToken Token { get; private set; }
+
+        public Task<Result<IReadOnlyList<VarName>>> UpdateVariablesAsync(ApiCollectionId id,
+            IReadOnlyDictionary<VarName, StringWithVars> values, CancellationToken cancellationToken)
+        {
+            Batches.Add(values);
+            Token = cancellationToken;
+            return _update(id, values, cancellationToken);
+        }
+    }
+
+    private sealed class BarrierHttpSender : IHttpSender
+    {
+        private readonly TaskCompletionSource _bothSent = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _calls;
+
+        public async Task<Result<HttpResponseData>> SendAsync(HttpRequestData request, CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref _calls) == 2)
+            {
+                _bothSent.SetResult();
+            }
+
+            await _bothSent.Task.WaitAsync(cancellationToken);
+            return new HttpResponseData(200, "OK", [], string.Empty);
+        }
+    }
+
     private sealed class FakeHttpSender : IHttpSender
     {
         public HttpRequestData? Request { get; private set; }
         public CancellationToken Token { get; private set; }
         public Action? OnSend { get; init; }
         public Error? Error { get; init; }
-        public HttpResponseData Response { get; } = new(201, "Created", [new("X-Response", "1")], "response");
+        public HttpResponseData Response { get; init; } = new(201, "Created", [new("X-Response", "1")], "response");
 
         public Task<Result<HttpResponseData>> SendAsync(HttpRequestData request, CancellationToken cancellationToken)
         {

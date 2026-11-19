@@ -132,4 +132,22 @@
   <data name="SendApiRequest.FolderCycle" xml:space="preserve">
     <value>La jerarquía de carpetas contiene un ciclo en {0}.</value>
   </data>
+  <data name="VarOut.ResponseNotJson" xml:space="preserve">
+    <value>El cuerpo de la respuesta no contiene JSON válido.</value>
+  </data>
+  <data name="VarOut.PathNotFound" xml:space="preserve">
+    <value>No se ha encontrado la ruta JSON «{0}» en la respuesta.</value>
+  </data>
+  <data name="VarOut.ValueNotScalar" xml:space="preserve">
+    <value>El valor de la ruta JSON «{0}» debe ser escalar.</value>
+  </data>
+  <data name="VarOut.PlaceholderNotSupported" xml:space="preserve">
+    <value>El marcador «{0}» no está disponible para extraer valores de la respuesta.</value>
+  </data>
+  <data name="VarOut.TargetNotFound" xml:space="preserve">
+    <value>No se ha encontrado una variable habilitada con el nombre «{0}».</value>
+  </data>
+  <data name="VarOut.SaveFailed" xml:space="preserve">
+    <value>No se ha podido guardar el valor extraído de la respuesta.</value>
+  </data>
 </root>

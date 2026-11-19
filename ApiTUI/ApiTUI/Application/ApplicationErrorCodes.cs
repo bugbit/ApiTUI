@@ -14,4 +14,10 @@ public static class ApplicationErrorCodes
     public const string HeaderValueInvalid = "SendApiRequest.HeaderValueInvalid";
     public const string HttpTimeout = "Http.Timeout";
     public const string HttpRequestFailed = "Http.RequestFailed";
+    public const string VarOutResponseNotJson = "VarOut.ResponseNotJson";
+    public const string VarOutPathNotFound = "VarOut.PathNotFound";
+    public const string VarOutValueNotScalar = "VarOut.ValueNotScalar";
+    public const string VarOutPlaceholderNotSupported = "VarOut.PlaceholderNotSupported";
+    public const string VarOutTargetNotFound = "VarOut.TargetNotFound";
+    public const string VarOutSaveFailed = "VarOut.SaveFailed";
 }

@@ -79,7 +79,7 @@ public sealed class ApiTuiAppTests
     private static ApiTuiApp CreateApp(IHttpSender sender, string language)
     {
         var store = new InMemoryApiStore();
-        var useCase = new SendApiRequestUseCase(sender, TimeProvider.System, store, store, store);
+        var useCase = new SendApiRequestUseCase(sender, TimeProvider.System, store, store, store, store, store, store);
         return new ApiTuiApp(useCase, new GuidIdGenerator(), new Messages(language), store);
     }
 

@@ -40,6 +40,13 @@ public sealed class ApiCollection : IEquatable<ApiCollection>
         return new ApiCollection(id, (ItemName)itemName.Value, (IReadOnlyList<VarValue>)variableList.Value);
     }
 
+    public (ApiCollection Entity, IReadOnlyList<VarName> Missing) WithVariableValues(
+        IReadOnlyDictionary<VarName, StringWithVars> values)
+    {
+        var replacement = VarValueList.ReplaceValues(Variables, values);
+        return (new ApiCollection(Id, Name, replacement.Variables), replacement.Missing);
+    }
+
     public bool Equals(ApiCollection? other) => other is not null && Id == other.Id;
 
     public override bool Equals(object? obj) => Equals(obj as ApiCollection);

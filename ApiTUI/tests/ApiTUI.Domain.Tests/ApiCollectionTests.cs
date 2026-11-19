@@ -5,6 +5,36 @@ namespace ApiTUI.Domain.Tests;
 public sealed class ApiCollectionTests
 {
     [Fact]
+    public void WithVariableValues_PreservesIdentityAndLeavesOriginalUnchanged()
+    {
+        var id = ApiCollectionId.Create("id").AssertSuccess();
+        var selected = VarName.Create("selected").AssertSuccess();
+        var disabled = VarName.Create("disabled").AssertSuccess();
+        var variables = new[]
+        {
+            VarValue.Create(selected, new StringWithVars("old")).AssertSuccess(),
+            VarValue.Create(disabled, new StringWithVars("disabled"), enabled: false).AssertSuccess(),
+        };
+        var original = ApiCollection.Create(id, "Scope", variables).AssertSuccess();
+
+        var (updated, missing) = original.WithVariableValues(new Dictionary<VarName, StringWithVars>
+        {
+            [selected] = new("new"),
+            [disabled] = new("ignored"),
+        });
+
+        Assert.NotSame(original, updated);
+        Assert.Same(original.Id, updated.Id);
+        Assert.Same(original.Name, updated.Name);
+        Assert.Equal(variables, original.Variables);
+        Assert.Equal(new[] { selected, disabled }, updated.Variables.Select(v => v.Name));
+        Assert.Equal("new", updated.Variables[0].Value.Text);
+        Assert.True(updated.Variables[0].Enabled);
+        Assert.Same(variables[1], updated.Variables[1]);
+        Assert.Equal(disabled, Assert.Single(missing));
+    }
+
+    [Fact]
     public void Create_ValidCollection_PreservesIdAndTrimsName()
     {
         var id = CollectionId();

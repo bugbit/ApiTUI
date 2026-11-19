@@ -96,6 +96,31 @@ public sealed class VarValueListTests
         Assert.Throws<NotSupportedException>(() => list[0] = Variable("other", "value"));
     }
 
+    [Fact]
+    public void ReplaceValues_ReplacesEnabledVariablesInOrderAndReportsMissingNames()
+    {
+        var first = Variable("first", "old");
+        var disabled = Variable("disabled", "original", enabled: false);
+        var last = Variable("last", "old");
+        var original = VarValueList.Create([first, disabled, last]).AssertSuccess();
+        var missing = VarName.Create("missing").AssertSuccess();
+        var updates = new Dictionary<VarName, StringWithVars>
+        {
+            [last.Name] = new("new last"),
+            [first.Name] = new("new first"),
+            [disabled.Name] = new("ignored"),
+            [missing] = new("ignored"),
+        };
+
+        var replacement = VarValueList.ReplaceValues(original, updates);
+
+        Assert.Equal(new[] { first, disabled, last }, original);
+        Assert.Equal(new[] { "new first", "original", "new last" }, replacement.Variables.Select(v => v.Value.Text));
+        Assert.Equal(new[] { true, false, true }, replacement.Variables.Select(v => v.Enabled));
+        Assert.Equal(new[] { disabled.Name, missing }, replacement.Missing);
+        AssertReadOnly(replacement.Variables);
+    }
+
     private static void AssertReadOnly(IReadOnlyList<VarValue> variables)
     {
         var list = Assert.IsAssignableFrom<IList<VarValue>>(variables);

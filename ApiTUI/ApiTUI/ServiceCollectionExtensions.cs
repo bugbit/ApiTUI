@@ -26,6 +26,9 @@ public static class ServiceCollectionExtensions
             .AddSingleton<IApiEnvironmentReader>(provider => provider.GetRequiredService<InMemoryApiStore>())
             .AddSingleton<IApiCollectionReader>(provider => provider.GetRequiredService<InMemoryApiStore>())
             .AddSingleton<IApiFolderReader>(provider => provider.GetRequiredService<InMemoryApiStore>())
+            .AddSingleton<IApiEnvironmentWriter>(provider => provider.GetRequiredService<InMemoryApiStore>())
+            .AddSingleton<IApiCollectionWriter>(provider => provider.GetRequiredService<InMemoryApiStore>())
+            .AddSingleton<IApiFolderWriter>(provider => provider.GetRequiredService<InMemoryApiStore>())
             .AddSingleton<SendApiRequestUseCase>()
             .AddSingleton<ApiTuiApp>();
     }

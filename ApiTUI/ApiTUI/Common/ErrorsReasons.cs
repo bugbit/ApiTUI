@@ -1,4 +1,4 @@
-﻿namespace ApiTUI.Common;
+namespace ApiTUI.Common;
 
 public static class ErrorsReasons
 {
@@ -6,4 +6,5 @@ public static class ErrorsReasons
     public const string IdNull = "IdNull";
     public const string Timeout = "Timeout";
     public const string HttpFailure = "HttpFailure";
+    public const string PersistenceFailure = "PersistenceFailure";
 }

@@ -5,6 +5,38 @@ namespace ApiTUI.Domain.Tests;
 public sealed class ApiFolderTests
 {
     [Fact]
+    public void WithVariableValues_PreservesIdentityAndLeavesOriginalUnchanged()
+    {
+        var id = ApiFolderId.Create("id").AssertSuccess();
+        var selected = VarName.Create("selected").AssertSuccess();
+        var disabled = VarName.Create("disabled").AssertSuccess();
+        var variables = new[]
+        {
+            VarValue.Create(selected, new StringWithVars("old")).AssertSuccess(),
+            VarValue.Create(disabled, new StringWithVars("disabled"), enabled: false).AssertSuccess(),
+        };
+        var original = ApiFolder.CreateInFolder(id, ApiFolderId.Create("parent").AssertSuccess(), "Folder", variables).AssertSuccess();
+
+        var (updated, missing) = original.WithVariableValues(new Dictionary<VarName, StringWithVars>
+        {
+            [selected] = new("new"),
+            [disabled] = new("ignored"),
+        });
+
+        Assert.NotSame(original, updated);
+        Assert.Same(original.Id, updated.Id);
+        Assert.Same(original.Name, updated.Name);
+        Assert.Same(original.ParentFolderId, updated.ParentFolderId);
+        Assert.Equal(original.CollectionId, updated.CollectionId);
+        Assert.Equal(variables, original.Variables);
+        Assert.Equal(new[] { selected, disabled }, updated.Variables.Select(v => v.Name));
+        Assert.Equal("new", updated.Variables[0].Value.Text);
+        Assert.True(updated.Variables[0].Enabled);
+        Assert.Same(variables[1], updated.Variables[1]);
+        Assert.Equal(disabled, Assert.Single(missing));
+    }
+
+    [Fact]
     public void CreateInCollection_PreservesCollectionLocation()
     {
         var id = FolderId("folder-1");

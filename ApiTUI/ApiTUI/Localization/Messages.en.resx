@@ -132,4 +132,22 @@
   <data name="SendApiRequest.FolderCycle" xml:space="preserve">
     <value>The folder hierarchy contains a cycle at {0}.</value>
   </data>
+  <data name="VarOut.ResponseNotJson" xml:space="preserve">
+    <value>The response body does not contain valid JSON.</value>
+  </data>
+  <data name="VarOut.PathNotFound" xml:space="preserve">
+    <value>JSON path '{0}' was not found in the response.</value>
+  </data>
+  <data name="VarOut.ValueNotScalar" xml:space="preserve">
+    <value>The value at JSON path '{0}' must be a scalar.</value>
+  </data>
+  <data name="VarOut.PlaceholderNotSupported" xml:space="preserve">
+    <value>Placeholder '{0}' is not supported for extracting response values.</value>
+  </data>
+  <data name="VarOut.TargetNotFound" xml:space="preserve">
+    <value>An enabled variable named '{0}' was not found.</value>
+  </data>
+  <data name="VarOut.SaveFailed" xml:space="preserve">
+    <value>The value extracted from the response could not be saved.</value>
+  </data>
 </root>

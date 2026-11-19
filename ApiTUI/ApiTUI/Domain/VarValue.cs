@@ -15,6 +15,8 @@ public sealed record VarValue
         Enabled = enabled;
     }
 
+    internal VarValue WithValue(StringWithVars value) => new(Name, value, Enabled);
+
     public static Result<VarValue> Create(VarName? name, StringWithVars? value, bool enabled = true)
     {
         if (name is null)

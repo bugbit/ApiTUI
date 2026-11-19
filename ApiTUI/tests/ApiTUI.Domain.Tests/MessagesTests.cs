@@ -50,6 +50,8 @@ public sealed class MessagesTests
             ApplicationErrorCodes.HttpRequestFailed,
             ApplicationErrorCodes.EnvironmentNotFound, ApplicationErrorCodes.CollectionNotFound,
             ApplicationErrorCodes.FolderNotFound, ApplicationErrorCodes.FolderCycle,
+            ApplicationErrorCodes.VarOutPathNotFound, ApplicationErrorCodes.VarOutValueNotScalar,
+            ApplicationErrorCodes.VarOutPlaceholderNotSupported, ApplicationErrorCodes.VarOutTargetNotFound,
             UiMessageKeys.Request, UiMessageKeys.ResponseStatus, UiMessageKeys.ResponseDuration,
             UiMessageKeys.RequestFailed,
         ];
@@ -175,6 +177,9 @@ public sealed class MessagesTests
             Assert.Same(store, host.Services.GetRequiredService<IApiEnvironmentReader>());
             Assert.Same(store, host.Services.GetRequiredService<IApiCollectionReader>());
             Assert.Same(store, host.Services.GetRequiredService<IApiFolderReader>());
+            Assert.Same(store, host.Services.GetRequiredService<IApiEnvironmentWriter>());
+            Assert.Same(store, host.Services.GetRequiredService<IApiCollectionWriter>());
+            Assert.Same(store, host.Services.GetRequiredService<IApiFolderWriter>());
 
             var messages = host.Services.GetRequiredService<Messages>();
             Assert.Equal(expected, messages.Language);
