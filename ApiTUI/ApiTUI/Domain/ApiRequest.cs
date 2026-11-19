@@ -10,11 +10,13 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
     public StringWithVars Url { get; }
     public IReadOnlyList<HeaderValue> Headers { get; }
     public StringWithVars Body { get; }
+    public IReadOnlyList<VarValue>? VarsOut { get; }
     public ApiCollectionId? CollectionId { get; }
     public ApiFolderId? FolderId { get; }
 
     private ApiRequest(ApiRequestId id, ItemName name, RequestMethod method, StringWithVars url,
-        IReadOnlyList<HeaderValue> headers, StringWithVars body, ApiCollectionId? collectionId, ApiFolderId? folderId)
+        IReadOnlyList<HeaderValue> headers, StringWithVars body, ApiCollectionId? collectionId, ApiFolderId? folderId,
+        IReadOnlyList<VarValue>? varsOut)
     {
         Id = id;
         Name = name;
@@ -22,6 +24,7 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
         Url = url;
         Headers = headers;
         Body = body;
+        VarsOut = varsOut;
         CollectionId = collectionId;
         FolderId = folderId;
     }
@@ -33,7 +36,8 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
         RequestMethod method = RequestMethod.Get,
         StringWithVars? url = null,
         IEnumerable<HeaderValue?>? headers = null,
-        StringWithVars? body = null) => Create(id, collectionId, null, name, method, url, headers, body);
+        StringWithVars? body = null,
+        IEnumerable<VarValue?>? varsOut = null) => Create(id, collectionId, null, name, method, url, headers, body, varsOut);
 
     public static Result<ApiRequest> CreateInFolder(
         ApiRequestId? id,
@@ -42,7 +46,8 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
         RequestMethod method = RequestMethod.Get,
         StringWithVars? url = null,
         IEnumerable<HeaderValue?>? headers = null,
-        StringWithVars? body = null) => Create(id, null, folderId, name, method, url, headers, body);
+        StringWithVars? body = null,
+        IEnumerable<VarValue?>? varsOut = null) => Create(id, null, folderId, name, method, url, headers, body, varsOut);
 
     private static Result<ApiRequest> Create(
         ApiRequestId? id,
@@ -52,7 +57,8 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
         RequestMethod method,
         StringWithVars? url,
         IEnumerable<HeaderValue?>? headers,
-        StringWithVars? body)
+        StringWithVars? body,
+        IEnumerable<VarValue?>? varsOut)
     {
         if (id is null)
         {
@@ -89,9 +95,21 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
             }
         }
 
+        IReadOnlyList<VarValue>? validatedVarsOut = null;
+        if (varsOut is not null)
+        {
+            var variableList = VarValueList.Create(varsOut);
+            if (!variableList.IsSuccess)
+            {
+                return Result<ApiRequest>.Failure(variableList.Error);
+            }
+
+            validatedVarsOut = variableList.Value;
+        }
+
         return Result<ApiRequest>.Success(new ApiRequest(id, itemName.Value, method,
             url ?? new StringWithVars(null), Array.AsReadOnly(validatedHeaders.ToArray()),
-            body ?? new StringWithVars(null), collectionId, folderId));
+            body ?? new StringWithVars(null), collectionId, folderId, validatedVarsOut));
     }
 
     // Entidad: la identidad la da el Id, no el resto de propiedades.

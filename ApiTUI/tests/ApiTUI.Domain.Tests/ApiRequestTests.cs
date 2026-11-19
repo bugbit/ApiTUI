@@ -67,6 +67,77 @@ public sealed class ApiRequestTests
         Assert.NotNull(result.Value.Body);
         Assert.Null(result.Value.Body.Text);
         Assert.Empty(result.Value.Headers);
+        Assert.Null(result.Value.VarsOut);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Create_EmptyVarsOut_PreservesEmptyList(bool inFolder)
+    {
+        var result = inFolder
+            ? ApiRequest.CreateInFolder(RequestId(), FolderId(), "Request", varsOut: [])
+            : ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request", varsOut: []);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Value.VarsOut);
+        Assert.Empty(result.Value.VarsOut);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Create_VarsOut_PreservesOrderAndValuesAndCopiesSource(bool inFolder)
+    {
+        var first = Var("token", "{{responseToken}}");
+        var second = Var("id", "42", enabled: false);
+        var source = new List<VarValue?> { first, second };
+
+        var result = inFolder
+            ? ApiRequest.CreateInFolder(RequestId(), FolderId(), "Request", varsOut: source)
+            : ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request", varsOut: source);
+        Assert.True(result.IsSuccess);
+
+        source.Clear();
+
+        Assert.NotNull(result.Value.VarsOut);
+        Assert.Equal(new[] { first, second }, result.Value.VarsOut);
+    }
+
+    [Fact]
+    public void VarsOut_ExposedCollection_CannotBeModified()
+    {
+        var variable = Var("token", "value");
+        var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request", varsOut: [variable]);
+        Assert.True(result.IsSuccess);
+        var list = Assert.IsAssignableFrom<IList<VarValue>>(result.Value.VarsOut);
+
+        Assert.True(list.IsReadOnly);
+        Assert.Throws<NotSupportedException>(() => list[0] = Var("other", "replacement"));
+        Assert.Same(variable, Assert.Single(list));
+    }
+
+    [Fact]
+    public void CreateInCollection_NullVarsOutElement_ReturnsInvalidInput()
+    {
+        var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request",
+            varsOut: [Var("token", "value"), null]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueListItemNull, result.Error.Code);
+    }
+
+    [Fact]
+    public void CreateInFolder_DuplicateVarsOutName_ReturnsNameAndInvalidInput()
+    {
+        var result = ApiRequest.CreateInFolder(RequestId(), FolderId(), "Request",
+            varsOut: [Var("token", "first"), Var("token", "second", enabled: false)]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueListDuplicated, result.Error.Code);
+        Assert.Equal("token", Assert.Single(result.Error.Args));
     }
 
     [Theory]
@@ -214,7 +285,8 @@ public sealed class ApiRequestTests
     public void Equality_SameIdDifferentProperties_AreEqual()
     {
         var first = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request");
-        var second = ApiRequest.CreateInFolder(RequestId(), FolderId(), "Renamed", RequestMethod.Post);
+        var second = ApiRequest.CreateInFolder(RequestId(), FolderId(), "Renamed", RequestMethod.Post,
+            varsOut: [Var("token", "value")]);
         Assert.True(first.IsSuccess);
         Assert.True(second.IsSuccess);
 
@@ -276,5 +348,14 @@ public sealed class ApiRequestTests
         var header = HeaderValue.Create(headerName.Value, new StringWithVars(value), enabled);
         Assert.True(header.IsSuccess);
         return header.Value;
+    }
+
+    private static VarValue Var(string name, string value, bool enabled = true)
+    {
+        var varName = VarName.Create(name);
+        Assert.True(varName.IsSuccess);
+        var variable = VarValue.Create(varName.Value, new StringWithVars(value), enabled);
+        Assert.True(variable.IsSuccess);
+        return variable.Value;
     }
 }
