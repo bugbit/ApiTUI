@@ -13,23 +13,25 @@ namespace ApiTUI.Domain.Tests;
 public sealed class ApiTuiAppTests
 {
     [Fact]
-    public async Task Run_SuccessfulResponse_SendsGetAndPrintsResult()
+    public async Task Run_SuccessfulResponse_SendsLoginAndPrintsResult()
     {
         var sender = new FakeHttpSender(Result<HttpResponseData>.Success(new HttpResponseData(200, "OK",
-            [new("Content-Type", "application/json")], "{\"id\":1}")));
+            [new("Content-Type", "application/json")], """{"token":"abc"}""")));
 
         var output = await RunAsync(sender, "es");
 
         var request = Assert.Single(sender.Requests);
-        Assert.Equal(RequestMethod.Get, request.Method);
-        Assert.Equal(new Uri(ApiTuiApp.SampleUrl), request.Url);
-        Assert.Equal(new KeyValuePair<string, string>("Accept", "application/json"), Assert.Single(request.Headers));
-        Assert.Null(request.Body);
-        Assert.Contains($"Petición: GET {ApiTuiApp.SampleUrl}", output);
+        Assert.Equal(RequestMethod.Post, request.Method);
+        Assert.Equal(new Uri("http://localhost:5080/login"), request.Url);
+        Assert.Equal(
+            [new KeyValuePair<string, string>("Accept", "application/json"), new("Content-Type", "application/json")],
+            request.Headers);
+        Assert.Equal("""{"username":"user2","password":"user2"}""", request.Body);
+        Assert.Contains("Petición: POST http://localhost:5080/login", output);
         Assert.Contains("Estado: 200 OK", output);
         Assert.Contains("Duración: ", output);
         Assert.Contains("  Content-Type: application/json", output);
-        Assert.Contains("{\"id\":1}", output);
+        Assert.Contains("""{"token":"abc"}""", output);
     }
 
     [Fact]
@@ -40,7 +42,7 @@ public sealed class ApiTuiAppTests
 
         var output = await RunAsync(sender, "en");
 
-        Assert.Contains($"Request: GET {ApiTuiApp.SampleUrl}", output);
+        Assert.Contains($"Request: POST {ApiTuiApp.LoginUrl}", output);
         Assert.Contains("Error: ", output);
         Assert.Contains("NameResolutionError", output);
         Assert.DoesNotContain("Status:", output);

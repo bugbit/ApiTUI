@@ -7,11 +7,13 @@ using ApiTUI.Localization;
 
 namespace ApiTUI;
 
-// Prueba provisional por consola del caso de uso de envío, hasta que exista la TUI:
-// hace un GET a una API pública de ejemplo y muestra el resultado.
+// Prueba provisional por consola del caso de uso de envío.
+// Hace login contra la TodoApi local de ApiTUI/samples/TodoApi, que debe estar arrancada.
 public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator idGenerator, Messages messages, InMemoryApiStore store)
 {
-    public const string SampleUrl = "https://jsonplaceholder.typicode.com/todos/1";
+    public const string BaseUrl = "http://localhost:5080";
+    public const string LoginUrl = BaseUrl + "/login";
+    public const string LoginBody = """{"username":"user2","password":"user2"}""";
 
     private readonly SendApiRequestUseCase _sendApiRequest = sendApiRequest;
     private readonly IIdGenerator _idGenerator = idGenerator;
@@ -29,7 +31,7 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
             return;
         }
 
-        Console.WriteLine(_messages.Get(UiMessageKeys.Request, $"{request.Value.Method.ToString().ToUpperInvariant()} {SampleUrl}"));
+        Console.WriteLine(_messages.Get(UiMessageKeys.Request, $"{request.Value.Method.ToString().ToUpperInvariant()} {LoginUrl}"));
         var result = await _sendApiRequest.ExecuteAsync(request.Value, null, cancellationToken);
         if (!result.IsSuccess)
         {
@@ -71,7 +73,7 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
             return Result<ApiRequest>.Failure(urlName.Error);
         }
 
-        var urlVariable = VarValue.Create(urlName.Value, new StringWithVars(SampleUrl));
+        var urlVariable = VarValue.Create(urlName.Value, new StringWithVars(BaseUrl));
         if (!urlVariable.IsSuccess)
         {
             return Result<ApiRequest>.Failure(urlVariable.Error);
@@ -85,20 +87,28 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
 
         _store.Add(collection.Value);
 
-        var acceptName = HeaderName.Create("Accept");
-        if (!acceptName.IsSuccess)
-        {
-            return Result<ApiRequest>.Failure(acceptName.Error);
-        }
-
-        var accept = HeaderValue.Create(acceptName.Value, new StringWithVars("application/json"));
+        var accept = CreateJsonHeader("Accept");
         if (!accept.IsSuccess)
         {
             return Result<ApiRequest>.Failure(accept.Error);
         }
 
-        return ApiRequest.CreateInCollection(requestId.Value, collectionId.Value, "Prueba GET", RequestMethod.Get,
-            new StringWithVars("{{url}}"), [accept.Value]);
+        var contentType = CreateJsonHeader("Content-Type");
+        if (!contentType.IsSuccess)
+        {
+            return Result<ApiRequest>.Failure(contentType.Error);
+        }
+
+        return ApiRequest.CreateInCollection(requestId.Value, collectionId.Value, "Login", RequestMethod.Post,
+            new StringWithVars("{{url}}/login"), [accept.Value, contentType.Value], new StringWithVars(LoginBody));
+    }
+
+    private static Result<HeaderValue> CreateJsonHeader(string name)
+    {
+        var headerName = HeaderName.Create(name);
+        return headerName.IsSuccess
+            ? HeaderValue.Create(headerName.Value, new StringWithVars("application/json"))
+            : Result<HeaderValue>.Failure(headerName.Error);
     }
 
     private void WriteError(Error error) => Console.WriteLine(_messages.Get(UiMessageKeys.RequestFailed, _messages.Format(error)));
