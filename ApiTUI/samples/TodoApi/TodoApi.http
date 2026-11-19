@@ -1,0 +1,47 @@
+@baseUrl = http://localhost:5080
+
+### Iniciar sesión
+# @name login
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{"username":"user2","password":"user2"}
+
+###
+@token = {{login.response.body.$.token}}
+
+### Listar las tareas
+GET {{baseUrl}}/tasks
+Authorization: Bearer {{token}}
+
+### Obtener una tarea del conjunto inicial
+GET {{baseUrl}}/tasks/1
+Authorization: Bearer {{token}}
+
+### Crear una tarea
+# @name createTask
+POST {{baseUrl}}/tasks
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"title":"Enviar una petición desde ApiTUI"}
+
+###
+@taskId = {{createTask.response.body.$.id}}
+
+### Actualizar la tarea creada
+PUT {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"title":"Petición comprobada","isCompleted":true}
+
+### Eliminar la tarea creada
+DELETE {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{token}}
+
+### Comprobar el 401
+GET {{baseUrl}}/tasks
+
+### Consultar el contrato de la API
+GET {{baseUrl}}/openapi/v1.json

@@ -8,6 +8,8 @@ ApiTUI es un cliente HTTP interactivo para terminal (estilo Postman, con estéti
 
 **Estado actual:** existe la solución `ApiTUI/ApiTUI.slnx`, una consola .NET 10 con Generic Host y tests de dominio, aplicación, adaptadores y localización. `SendApiRequestUseCase` envía peticiones mediante `IHttpSender` y `HttpClientSender`; como prueba provisional, la consola hace un GET a una API pública y muestra el resultado (es/en). El código vive en carpetas dentro de la consola; los proyectos por capa y la TUI siguen pendientes. El README distingue el estado actual del diseño previsto.
 
+La solución también incluye una API TODO de pruebas en `ApiTUI/samples/TodoApi` y sus tests de integración en `ApiTUI/tests/TodoApi.Tests`. Estos dos proyectos requieren el SDK de .NET 11.
+
 La documentación y el README están en español; mantén ese idioma en la documentación del proyecto.
 
 ## Comandos
@@ -18,6 +20,7 @@ Desde la raíz del repositorio:
 dotnet restore ApiTUI/ApiTUI.slnx
 dotnet build ApiTUI/ApiTUI.slnx --configuration Release
 dotnet run --project ApiTUI/ApiTUI
+dotnet run --project ApiTUI/samples/TodoApi
 dotnet test ApiTUI/ApiTUI.slnx
 dotnet test ApiTUI/tests/ApiTUI.Domain.Tests --filter "FullyQualifiedName~NombreDelTest"
 

@@ -1,6 +1,10 @@
 <Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/TodoApi/TodoApi.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ApiTUI.Domain.Tests/ApiTUI.Domain.Tests.csproj" />
+    <Project Path="tests/TodoApi.Tests/TodoApi.Tests.csproj" />
   </Folder>
   <Project Path="ApiTUI/ApiTUI.csproj" />
 </Solution>

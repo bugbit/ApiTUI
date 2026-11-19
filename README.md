@@ -65,7 +65,7 @@ Terminal.Gui dibuja la interfaz en la terminal; ApiTUI no requiere que el usuari
 
 Para compilar desde el código fuente:
 
-- SDK de .NET correspondiente al *target framework* configurado en la solución. La propuesta inicial es .NET 10.
+- SDK de .NET 11 para compilar la solución completa. La consola ApiTUI apunta a .NET 10.
 - Git.
 - Un terminal que admita entrada interactiva y las secuencias de control usadas por Terminal.Gui.
 
@@ -235,6 +235,30 @@ Los tests del envío usan dobles y no realizan conexiones de red. Los flujos de 
 - Los ejecutables Native AOT se generan por plataforma y arquitectura.
 - Docker necesita una terminal interactiva para mostrar y controlar la interfaz TUI.
 - Los secretos guardados en ficheros JSON quedan en texto legible salvo que se implemente cifrado o integración con el almacén seguro del sistema operativo.
+
+## API TODO de pruebas
+
+La solución requiere el SDK de .NET 11 para compilar la API de ejemplo y sus pruebas de integración. La consola ApiTUI sigue en .NET 10.
+
+Desde la raíz del repositorio, arranca el servidor local con:
+
+```bash
+dotnet run --project ApiTUI/samples/TodoApi
+```
+
+Escucha en `http://localhost:5080` y carga tres tareas en memoria. Usa `user2` como usuario y contraseña. Envía el token devuelto por el login en la cabecera `Authorization: Bearer <token>` para operar con las tareas. Las credenciales son fijas y los tokens duran hasta que se reinicia el servidor. Usa esta API solo para pruebas locales.
+
+| Método y ruta | Cuerpo JSON | Respuestas |
+| --- | --- | --- |
+| `POST /login` | `username`, `password` | 200 con token, 401 |
+| `GET /tasks` | | 200 con la lista, 401 |
+| `GET /tasks/{id}` | | 200 con la tarea, 401, 404 |
+| `POST /tasks` | `title` | 201 con `Location` y la tarea, 400, 401 |
+| `PUT /tasks/{id}` | `title`, `isCompleted` | 200 con la tarea, 400, 401, 404 |
+| `DELETE /tasks/{id}` | | 204, 401, 404 |
+| `GET /openapi/v1.json` | | 200 con el documento OpenAPI 3.2 |
+
+El servidor está en `ApiTUI/samples/TodoApi` y los tests con `WebApplicationFactory` en `ApiTUI/tests/TodoApi.Tests`. El fichero `TodoApi.http` incluye ejemplos que reutilizan el token y el identificador de la tarea creada.
 
 ## Licencia
 
