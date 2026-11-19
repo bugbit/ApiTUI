@@ -62,23 +62,23 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
     {
         if (id is null)
         {
-            return Result<ApiRequest>.Failure(ErrorsReasons.IdNull, DomainErrorCodes.ApiRequestIdRequired);
+            return new Error(ErrorsReasons.IdNull, DomainErrorCodes.ApiRequestIdRequired);
         }
 
         if (collectionId is null && folderId is null)
         {
-            return Result<ApiRequest>.Failure(ErrorsReasons.IdNull, DomainErrorCodes.ApiRequestLocationRequired);
+            return new Error(ErrorsReasons.IdNull, DomainErrorCodes.ApiRequestLocationRequired);
         }
 
         var itemName = ItemName.Create(name);
-        if (!itemName.IsSuccess)
+        if (itemName is Error itemNameError)
         {
-            return Result<ApiRequest>.Failure(itemName.Error);
+            return itemNameError;
         }
 
         if (!Enum.IsDefined(method))
         {
-            return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestMethodInvalid);
+            return new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestMethodInvalid);
         }
 
         var validatedHeaders = new List<HeaderValue>();
@@ -88,7 +88,7 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
             {
                 if (header is null)
                 {
-                    return Result<ApiRequest>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestHeaderNull);
+                    return new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiRequestHeaderNull);
                 }
 
                 validatedHeaders.Add(header);
@@ -99,17 +99,17 @@ public sealed class ApiRequest : IEquatable<ApiRequest>
         if (varsOut is not null)
         {
             var variableList = VarValueList.Create(varsOut);
-            if (!variableList.IsSuccess)
+            if (variableList is Error variableListError)
             {
-                return Result<ApiRequest>.Failure(variableList.Error);
+                return variableListError;
             }
 
-            validatedVarsOut = variableList.Value;
+            validatedVarsOut = (IReadOnlyList<VarValue>)variableList.Value;
         }
 
-        return Result<ApiRequest>.Success(new ApiRequest(id, itemName.Value, method,
+        return new ApiRequest(id, (ItemName)itemName.Value, method,
             url ?? new StringWithVars(null), Array.AsReadOnly(validatedHeaders.ToArray()),
-            body ?? new StringWithVars(null), collectionId, folderId, validatedVarsOut));
+            body ?? new StringWithVars(null), collectionId, folderId, validatedVarsOut);
     }
 
     // Entidad: la identidad la da el Id, no el resto de propiedades.

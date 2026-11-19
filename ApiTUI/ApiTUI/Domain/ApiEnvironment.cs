@@ -22,22 +22,22 @@ public sealed class ApiEnvironment : IEquatable<ApiEnvironment>
     {
         if (id is null)
         {
-            return Result<ApiEnvironment>.Failure(ErrorsReasons.IdNull, DomainErrorCodes.ApiEnvironmentIdRequired);
+            return new Error(ErrorsReasons.IdNull, DomainErrorCodes.ApiEnvironmentIdRequired);
         }
 
         var itemName = ItemName.Create(name);
-        if (!itemName.IsSuccess)
+        if (itemName is Error itemNameError)
         {
-            return Result<ApiEnvironment>.Failure(itemName.Error);
+            return itemNameError;
         }
 
         var variableList = VarValueList.Create(variables);
-        if (!variableList.IsSuccess)
+        if (variableList is Error variableListError)
         {
-            return Result<ApiEnvironment>.Failure(variableList.Error);
+            return variableListError;
         }
 
-        return Result<ApiEnvironment>.Success(new ApiEnvironment(id, itemName.Value, variableList.Value));
+        return new ApiEnvironment(id, (ItemName)itemName.Value, (IReadOnlyList<VarValue>)variableList.Value);
     }
 
     public bool Equals(ApiEnvironment? other) => other is not null && Id == other.Id;

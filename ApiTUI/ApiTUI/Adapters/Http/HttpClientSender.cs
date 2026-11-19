@@ -27,13 +27,13 @@ public sealed class HttpClientSender(HttpClient httpClient, HttpSenderOptions op
         {
             if (value.AsSpan().ContainsAny('\r', '\n', '\0'))
             {
-                return Result<HttpResponseData>.Failure(ErrorsReasons.InvalidInput, ApplicationErrorCodes.HeaderValueInvalid, name);
+                return new Error(ErrorsReasons.InvalidInput, ApplicationErrorCodes.HeaderValueInvalid, name);
             }
 
             if (!message.Headers.TryAddWithoutValidation(name, value)
                 && !(message.Content?.Headers.TryAddWithoutValidation(name, value) ?? false))
             {
-                return Result<HttpResponseData>.Failure(ErrorsReasons.InvalidInput, ApplicationErrorCodes.HeaderInvalid, name);
+                return new Error(ErrorsReasons.InvalidInput, ApplicationErrorCodes.HeaderInvalid, name);
             }
         }
 
@@ -46,8 +46,8 @@ public sealed class HttpClientSender(HttpClient httpClient, HttpSenderOptions op
             var headers = response.Headers.Concat(response.Content.Headers)
                 .SelectMany(header => header.Value.Select(value => new KeyValuePair<string, string>(header.Key, value)))
                 .ToArray();
-            return Result<HttpResponseData>.Success(new HttpResponseData((int)response.StatusCode, response.ReasonPhrase,
-                Array.AsReadOnly(headers), body));
+            return new HttpResponseData((int)response.StatusCode, response.ReasonPhrase,
+                Array.AsReadOnly(headers), body);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -55,11 +55,11 @@ public sealed class HttpClientSender(HttpClient httpClient, HttpSenderOptions op
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
         {
-            return Result<HttpResponseData>.Failure(ErrorsReasons.Timeout, ApplicationErrorCodes.HttpTimeout, _options.Timeout.TotalSeconds);
+            return new Error(ErrorsReasons.Timeout, ApplicationErrorCodes.HttpTimeout, _options.Timeout.TotalSeconds);
         }
         catch (HttpRequestException exception)
         {
-            return Result<HttpResponseData>.Failure(ErrorsReasons.HttpFailure, ApplicationErrorCodes.HttpRequestFailed,
+            return new Error(ErrorsReasons.HttpFailure, ApplicationErrorCodes.HttpRequestFailed,
                 exception.HttpRequestError.ToString());
         }
     }

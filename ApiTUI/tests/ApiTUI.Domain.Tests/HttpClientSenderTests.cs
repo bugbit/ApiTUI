@@ -31,7 +31,7 @@ public sealed class HttpClientSenderTests
 
         var result = await Sender(client).SendAsync(Request(method), CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        result.AssertSuccess();
         Assert.Equal(expected, actual);
     }
 
@@ -52,7 +52,7 @@ public sealed class HttpClientSenderTests
 
         var result = await Sender(client).SendAsync(request, CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        result.AssertSuccess();
         Assert.Equal(1, handler.Calls);
     }
 
@@ -69,7 +69,7 @@ public sealed class HttpClientSenderTests
 
         var result = await Sender(client).SendAsync(Request(body: "body"), CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        result.AssertSuccess();
     }
 
     [Theory]
@@ -90,13 +90,13 @@ public sealed class HttpClientSenderTests
 
         var result = await Sender(client).SendAsync(Request(), CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(statusCode, result.Value.StatusCode);
-        Assert.Equal("Example reason", result.Value.ReasonPhrase);
-        Assert.Equal("response body", result.Value.Body);
-        Assert.Equal(new[] { "one", "two" }, result.Value.Headers.Where(pair => pair.Key == "X-Response").Select(pair => pair.Value));
-        Assert.Contains(new KeyValuePair<string, string>("X-Content", "content-value"), result.Value.Headers);
-        Assert.Contains(result.Value.Headers, pair => pair.Key == "Content-Type");
+        var value = result.AssertSuccess();
+        Assert.Equal(statusCode, value.StatusCode);
+        Assert.Equal("Example reason", value.ReasonPhrase);
+        Assert.Equal("response body", value.Body);
+        Assert.Equal(new[] { "one", "two" }, value.Headers.Where(pair => pair.Key == "X-Response").Select(pair => pair.Value));
+        Assert.Contains(new KeyValuePair<string, string>("X-Content", "content-value"), value.Headers);
+        Assert.Contains(value.Headers, pair => pair.Key == "Content-Type");
     }
 
     [Fact]
@@ -108,10 +108,10 @@ public sealed class HttpClientSenderTests
 
         var result = await Sender(client).SendAsync(Request(), CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.HttpFailure, result.Error.Reason);
-        Assert.Equal(ApplicationErrorCodes.HttpRequestFailed, result.Error.Code);
-        Assert.Equal("NameResolutionError", Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.HttpFailure, error.Reason);
+        Assert.Equal(ApplicationErrorCodes.HttpRequestFailed, error.Code);
+        Assert.Equal("NameResolutionError", Assert.Single(error.Args));
     }
 
     [Fact]
@@ -123,10 +123,10 @@ public sealed class HttpClientSenderTests
 
         var result = await Sender(client).SendAsync(Request(), CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.HttpFailure, result.Error.Reason);
-        Assert.Equal(ApplicationErrorCodes.HttpRequestFailed, result.Error.Code);
-        Assert.Equal("ResponseEnded", Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.HttpFailure, error.Reason);
+        Assert.Equal(ApplicationErrorCodes.HttpRequestFailed, error.Code);
+        Assert.Equal("ResponseEnded", Assert.Single(error.Args));
     }
 
     [Fact]
@@ -141,10 +141,10 @@ public sealed class HttpClientSenderTests
 
         var result = await Sender(client, TimeSpan.FromMilliseconds(200)).SendAsync(Request(), CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.Timeout, result.Error.Reason);
-        Assert.Equal(ApplicationErrorCodes.HttpTimeout, result.Error.Code);
-        Assert.Equal(0.2, Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.Timeout, error.Reason);
+        Assert.Equal(ApplicationErrorCodes.HttpTimeout, error.Code);
+        Assert.Equal(0.2, Assert.Single(error.Args));
         Assert.Equal(1, handler.Calls);
     }
 
@@ -159,9 +159,9 @@ public sealed class HttpClientSenderTests
         var result = await Sender(client, TimeSpan.FromMilliseconds(200)).SendAsync(Request(), CancellationToken.None);
 
         Assert.True(stream.ReadStarted.Task.IsCompletedSuccessfully);
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ApplicationErrorCodes.HttpTimeout, result.Error.Code);
-        Assert.Equal(ErrorsReasons.Timeout, result.Error.Reason);
+        var error = result.AssertFailure();
+        Assert.Equal(ApplicationErrorCodes.HttpTimeout, error.Code);
+        Assert.Equal(ErrorsReasons.Timeout, error.Reason);
     }
 
     [Fact]
@@ -202,9 +202,9 @@ public sealed class HttpClientSenderTests
 
         var result = await Sender(client).SendAsync(Request(headers: [new("X-Test", value)]), CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ApplicationErrorCodes.HeaderValueInvalid, result.Error.Code);
-        Assert.Equal("X-Test", Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ApplicationErrorCodes.HeaderValueInvalid, error.Code);
+        Assert.Equal("X-Test", Assert.Single(error.Args));
         Assert.Equal(0, handler.Calls);
     }
 
@@ -218,10 +218,10 @@ public sealed class HttpClientSenderTests
 
         var result = await Sender(client).SendAsync(Request(headers: [new(name, "value")]), CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ApplicationErrorCodes.HeaderInvalid, result.Error.Code);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(name, Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ApplicationErrorCodes.HeaderInvalid, error.Code);
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(name, Assert.Single(error.Args));
         Assert.Equal(0, handler.Calls);
     }
 

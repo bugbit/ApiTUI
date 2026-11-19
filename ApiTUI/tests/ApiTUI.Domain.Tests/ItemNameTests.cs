@@ -13,10 +13,10 @@ public sealed class ItemNameTests
     {
         var result = ItemName.Create(value);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ItemNameEmpty, result.Error.Code);
-        Assert.Empty(result.Error.Args);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.ItemNameEmpty, error.Code);
+        Assert.Empty(error.Args);
     }
 
     [Fact]
@@ -24,9 +24,9 @@ public sealed class ItemNameTests
     {
         var result = ItemName.Create("  Login v1.2  ");
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal("Login v1.2", result.Value.Value);
-        Assert.Equal("Login v1.2", result.Value.ToString());
+        var value = result.AssertSuccess();
+        Assert.Equal("Login v1.2", value.Value);
+        Assert.Equal("Login v1.2", value.ToString());
     }
 
     [Theory]
@@ -46,10 +46,10 @@ public sealed class ItemNameTests
     {
         var result = ItemName.Create(value);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ItemNameInvalidChars, result.Error.Code);
-        Assert.Equal("<>:\"/\\|?*", Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.ItemNameInvalidChars, error.Code);
+        Assert.Equal("<>:\"/\\|?*", Assert.Single(error.Args));
     }
 
     [Theory]
@@ -63,17 +63,17 @@ public sealed class ItemNameTests
     {
         var result = ItemName.Create(value);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
         if (value.EndsWith('.'))
         {
-            Assert.Equal(DomainErrorCodes.ItemNameEndsWithDot, result.Error.Code);
-            Assert.Empty(result.Error.Args);
+            Assert.Equal(DomainErrorCodes.ItemNameEndsWithDot, error.Code);
+            Assert.Empty(error.Args);
         }
         else
         {
-            Assert.Equal(DomainErrorCodes.ItemNameReserved, result.Error.Code);
-            Assert.Equal(value.Split('.')[0].TrimEnd(), Assert.Single(result.Error.Args));
+            Assert.Equal(DomainErrorCodes.ItemNameReserved, error.Code);
+            Assert.Equal(value.Split('.')[0].TrimEnd(), Assert.Single(error.Args));
         }
     }
 
@@ -88,7 +88,6 @@ public sealed class ItemNameTests
     {
         var result = ItemName.Create(value);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(value, result.Value.Value);
+        Assert.Equal(value, result.AssertSuccess().Value);
     }
 }

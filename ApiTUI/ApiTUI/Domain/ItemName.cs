@@ -22,28 +22,28 @@ public sealed record ItemName
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return Result<ItemName>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ItemNameEmpty);
+            return new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ItemNameEmpty);
         }
 
         var trimmedValue = value.Trim();
         if (trimmedValue.Any(c => char.IsControl(c) || InvalidNameChars.Contains(c)))
         {
-            return Result<ItemName>.Failure(ErrorsReasons.InvalidInput,
+            return new Error(ErrorsReasons.InvalidInput,
                 DomainErrorCodes.ItemNameInvalidChars, InvalidNameChars);
         }
 
         if (trimmedValue.EndsWith('.'))
         {
-            return Result<ItemName>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ItemNameEndsWithDot);
+            return new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ItemNameEndsWithDot);
         }
 
         var baseName = trimmedValue.Split('.')[0].TrimEnd();
         if (ReservedNames.Contains(baseName, StringComparer.OrdinalIgnoreCase))
         {
-            return Result<ItemName>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ItemNameReserved, baseName);
+            return new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ItemNameReserved, baseName);
         }
 
-        return Result<ItemName>.Success(new ItemName(trimmedValue));
+        return new ItemName(trimmedValue);
     }
 
     public override string ToString() => Value;

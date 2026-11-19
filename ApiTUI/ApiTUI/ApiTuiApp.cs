@@ -24,22 +24,23 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var request = CreateSampleRequest();
-        if (!request.IsSuccess)
+        var requestResult = CreateSampleRequest();
+        if (requestResult is Error requestError)
         {
-            WriteError(request.Error);
+            WriteError(requestError);
             return;
         }
 
-        Console.WriteLine(_messages.Get(UiMessageKeys.Request, $"{request.Value.Method.ToString().ToUpperInvariant()} {LoginUrl}"));
-        var result = await _sendApiRequest.ExecuteAsync(request.Value, null, cancellationToken);
-        if (!result.IsSuccess)
+        var request = (ApiRequest)requestResult.Value;
+        Console.WriteLine(_messages.Get(UiMessageKeys.Request, $"{request.Method.ToString().ToUpperInvariant()} {LoginUrl}"));
+        var result = await _sendApiRequest.ExecuteAsync(request, null, cancellationToken);
+        if (result is Error resultError)
         {
-            WriteError(result.Error);
+            WriteError(resultError);
             return;
         }
 
-        var response = result.Value;
+        var response = (ApiResponse)result.Value;
         Console.WriteLine(_messages.Get(UiMessageKeys.ResponseStatus, $"{response.StatusCode} {response.ReasonPhrase}".TrimEnd()));
         Console.WriteLine(_messages.Get(UiMessageKeys.ResponseDuration, (long)response.Duration.TotalMilliseconds));
         Console.WriteLine(_messages.Get(UiMessageKeys.ResponseHeaders));
@@ -55,60 +56,61 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
     private Result<ApiRequest> CreateSampleRequest()
     {
         var requestId = _idGenerator.NextApiRequestId();
-        if (!requestId.IsSuccess)
+        if (requestId is Error requestIdError)
         {
-            return Result<ApiRequest>.Failure(requestId.Error);
+            return requestIdError;
         }
 
         var collectionId = _idGenerator.NextApiCollectionId();
-        if (!collectionId.IsSuccess)
+        if (collectionId is Error collectionIdError)
         {
-            return Result<ApiRequest>.Failure(collectionId.Error);
+            return collectionIdError;
         }
 
         // La URL se guarda como variable de la colección para probar la resolución de {{url}} al enviar.
         var urlName = VarName.Create("url");
-        if (!urlName.IsSuccess)
+        if (urlName is Error urlNameError)
         {
-            return Result<ApiRequest>.Failure(urlName.Error);
+            return urlNameError;
         }
 
-        var urlVariable = VarValue.Create(urlName.Value, new StringWithVars(BaseUrl));
-        if (!urlVariable.IsSuccess)
+        var urlVariable = VarValue.Create((VarName)urlName.Value, new StringWithVars(BaseUrl));
+        if (urlVariable is Error urlVariableError)
         {
-            return Result<ApiRequest>.Failure(urlVariable.Error);
+            return urlVariableError;
         }
 
-        var collection = ApiCollection.Create(collectionId.Value, "Demo", [urlVariable.Value]);
-        if (!collection.IsSuccess)
+        var collection = ApiCollection.Create((ApiCollectionId)collectionId.Value, "Demo", [(VarValue)urlVariable.Value]);
+        if (collection is Error collectionError)
         {
-            return Result<ApiRequest>.Failure(collection.Error);
+            return collectionError;
         }
 
-        _store.Add(collection.Value);
+        _store.Add((ApiCollection)collection.Value);
 
         var accept = CreateJsonHeader("Accept");
-        if (!accept.IsSuccess)
+        if (accept is Error acceptError)
         {
-            return Result<ApiRequest>.Failure(accept.Error);
+            return acceptError;
         }
 
         var contentType = CreateJsonHeader("Content-Type");
-        if (!contentType.IsSuccess)
+        if (contentType is Error contentTypeError)
         {
-            return Result<ApiRequest>.Failure(contentType.Error);
+            return contentTypeError;
         }
 
-        return ApiRequest.CreateInCollection(requestId.Value, collectionId.Value, "Login", RequestMethod.Post,
-            new StringWithVars("{{url}}/login"), [accept.Value, contentType.Value], new StringWithVars(LoginBody));
+        return ApiRequest.CreateInCollection((ApiRequestId)requestId.Value, (ApiCollectionId)collectionId.Value, "Login",
+            RequestMethod.Post, new StringWithVars("{{url}}/login"), [(HeaderValue)accept.Value, (HeaderValue)contentType.Value], new StringWithVars(LoginBody));
     }
 
     private static Result<HeaderValue> CreateJsonHeader(string name)
     {
-        var headerName = HeaderName.Create(name);
-        return headerName.IsSuccess
-            ? HeaderValue.Create(headerName.Value, new StringWithVars("application/json"))
-            : Result<HeaderValue>.Failure(headerName.Error);
+        return HeaderName.Create(name) switch
+        {
+            Error error => error,
+            HeaderName headerName => HeaderValue.Create(headerName, new StringWithVars("application/json")),
+        };
     }
 
     private void WriteError(Error error) => Console.WriteLine(_messages.Get(UiMessageKeys.RequestFailed, _messages.Format(error)));

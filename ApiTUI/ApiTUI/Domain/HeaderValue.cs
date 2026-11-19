@@ -19,9 +19,9 @@ public sealed record HeaderValue
     {
         if (name is null)
         {
-            return Result<HeaderValue>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.HeaderValueNameRequired);
+            return new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.HeaderValueNameRequired);
         }
 
-        return Result<HeaderValue>.Success(new HeaderValue(name, value ?? new StringWithVars(null), enabled));
+        return new HeaderValue(name, value ?? new StringWithVars(null), enabled);
     }
 }

@@ -150,8 +150,7 @@ public sealed class StringWithVarsTests
         foreach (var (name, value) in variables)
         {
             var varName = VarName.Create(name);
-            Assert.True(varName.IsSuccess);
-            result.Add(varName.Value, value);
+            result.Add(varName.AssertSuccess(), value);
         }
 
         return result;

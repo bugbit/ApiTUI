@@ -25,35 +25,35 @@ public sealed class SendApiRequestUseCase(
 
         var loaded = await LoadVariablesAsync(request, environmentId, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        if (!loaded.IsSuccess)
+        if (loaded is Error loadedError)
         {
-            return Result<ApiResponse>.Failure(loaded.Error);
+            return loadedError;
         }
 
-        var variables = loaded.Value;
+        var variables = (Dictionary<VarName, object?>)loaded.Value;
         var unresolved = request.Url.GetVarNames().Concat(request.Body.GetVarNames())
             .Concat(request.Headers.Where(header => header.Enabled).SelectMany(header => header.Value.GetVarNames()))
             .Where(name => !variables.ContainsKey(name)).Distinct().ToArray();
         if (unresolved.Length > 0)
         {
-            return Result<ApiResponse>.Failure(ErrorsReasons.InvalidInput, ApplicationErrorCodes.UnresolvedVariables,
+            return new Error(ErrorsReasons.InvalidInput, ApplicationErrorCodes.UnresolvedVariables,
                 string.Join(", ", unresolved.Select(name => name.Value)));
         }
 
         var url = request.Url.Resolve(variables);
         if (string.IsNullOrWhiteSpace(url))
         {
-            return Result<ApiResponse>.Failure(ErrorsReasons.InvalidInput, ApplicationErrorCodes.UrlEmpty);
+            return new Error(ErrorsReasons.InvalidInput, ApplicationErrorCodes.UrlEmpty);
         }
 
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
-            return Result<ApiResponse>.Failure(ErrorsReasons.InvalidInput, ApplicationErrorCodes.UrlInvalid, url);
+            return new Error(ErrorsReasons.InvalidInput, ApplicationErrorCodes.UrlInvalid, url);
         }
 
         if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
         {
-            return Result<ApiResponse>.Failure(ErrorsReasons.InvalidInput, ApplicationErrorCodes.UrlSchemeNotSupported, uri.Scheme);
+            return new Error(ErrorsReasons.InvalidInput, ApplicationErrorCodes.UrlSchemeNotSupported, uri.Scheme);
         }
 
         var headers = new List<KeyValuePair<string, string>>();
@@ -62,7 +62,7 @@ public sealed class SendApiRequestUseCase(
             var value = header.Value.Resolve(variables) ?? string.Empty;
             if (value.AsSpan().ContainsAny('\r', '\n', '\0'))
             {
-                return Result<ApiResponse>.Failure(ErrorsReasons.InvalidInput, ApplicationErrorCodes.HeaderValueInvalid, header.Name.Value);
+                return new Error(ErrorsReasons.InvalidInput, ApplicationErrorCodes.HeaderValueInvalid, header.Name.Value);
             }
 
             headers.Add(new KeyValuePair<string, string>(header.Name.Value, value));
@@ -72,14 +72,14 @@ public sealed class SendApiRequestUseCase(
         var data = new HttpRequestData(request.Method, uri, headers.AsReadOnly(), string.IsNullOrEmpty(body) ? null : body);
         var start = _timeProvider.GetTimestamp();
         var result = await _httpSender.SendAsync(data, cancellationToken);
-        if (!result.IsSuccess)
+        if (result is Error resultError)
         {
-            return Result<ApiResponse>.Failure(result.Error);
+            return resultError;
         }
 
-        var response = result.Value;
-        return Result<ApiResponse>.Success(new ApiResponse(response.StatusCode, response.ReasonPhrase, response.Headers,
-            response.Body, _timeProvider.GetElapsedTime(start)));
+        var response = (HttpResponseData)result.Value;
+        return new ApiResponse(response.StatusCode, response.ReasonPhrase, response.Headers,
+            response.Body, _timeProvider.GetElapsedTime(start));
     }
 
     private async Task<Result<Dictionary<VarName, object?>>> LoadVariablesAsync(
@@ -151,7 +151,7 @@ public sealed class SendApiRequestUseCase(
             Apply(folder.Variables);
         }
 
-        return Result<Dictionary<VarName, object?>>.Success(variables);
+        return variables;
 
         void Apply(IReadOnlyList<VarValue> scope)
         {
@@ -166,5 +166,5 @@ public sealed class SendApiRequestUseCase(
     }
 
     private static Result<Dictionary<VarName, object?>> Missing(string code, string id) =>
-        Result<Dictionary<VarName, object?>>.Failure(ErrorsReasons.InvalidInput, code, id);
+        new Error(ErrorsReasons.InvalidInput, code, id);
 }

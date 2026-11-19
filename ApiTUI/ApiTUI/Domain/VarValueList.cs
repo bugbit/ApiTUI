@@ -16,14 +16,12 @@ public static class VarValueList
             {
                 if (variable is null)
                 {
-                    return Result<IReadOnlyList<VarValue>>.Failure(
-                        ErrorsReasons.InvalidInput, DomainErrorCodes.VarValueListItemNull);
+                    return new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.VarValueListItemNull);
                 }
 
                 if (!names.Add(variable.Name))
                 {
-                    return Result<IReadOnlyList<VarValue>>.Failure(
-                        ErrorsReasons.InvalidInput, DomainErrorCodes.VarValueListDuplicated, variable.Name.Value);
+                    return new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.VarValueListDuplicated, variable.Name.Value);
                 }
 
                 validated.Add(variable);
@@ -31,6 +29,6 @@ public static class VarValueList
         }
 
         IReadOnlyList<VarValue> readOnly = Array.AsReadOnly(validated.ToArray());
-        return Result<IReadOnlyList<VarValue>>.Success(readOnly);
+        return readOnly;
     }
 }

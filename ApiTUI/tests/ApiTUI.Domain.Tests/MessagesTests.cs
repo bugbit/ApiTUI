@@ -188,20 +188,15 @@ public sealed class MessagesTests
     }
 
     [Fact]
-    public void ErrorAndFailure_PreserveCodeAndArgumentsWithoutSharingMutableArray()
+    public void Error_PreservesCodeAndArgumentsWithoutSharingMutableArray()
     {
         object[] args = ["CON"];
-        var result = Result<string>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ItemNameReserved, args);
+        var error = new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ItemNameReserved, args);
         args[0] = "changed";
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ItemNameReserved, result.Error.Code);
-        Assert.Equal("CON", Assert.Single(result.Error.Args));
-        var converted = Result<string>.Failure(result.Error);
-        Assert.Same(result.Error, converted.Error);
-        Result<string> implicitFailure = result.Error;
-        Assert.Same(result.Error, implicitFailure.Error);
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.ItemNameReserved, error.Code);
+        Assert.Equal("CON", Assert.Single(error.Args));
     }
 
     private static string[] Markers(string template) => Regex.Matches(template, @"(?<!\{)\{(\d+)[^{}]*\}(?!\})")

@@ -6,13 +6,13 @@ ARG LAUNCHING_FROM_VS
 ARG FINAL_BASE_IMAGE=${LAUNCHING_FROM_VS:+aotdebug}
 
 # Esta fase se usa cuando se ejecuta desde VS en modo rápido (valor predeterminado para la configuración de depuración)
-FROM mcr.microsoft.com/dotnet/runtime:10.0 AS base
+FROM mcr.microsoft.com/dotnet/runtime:11.0 AS base
 USER $APP_UID
 WORKDIR /app
 
 
 # Esta fase se usa para compilar el proyecto de servicio
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 # Instalación de las dependencias clang/zlib1g-dev para publicar en nativo
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -40,7 +40,7 @@ RUN apt-get update \
 USER app
 
 # Esta fase se usa en producción o cuando se ejecuta desde VS en modo normal (valor predeterminado cuando no se usa la configuración de depuración)
-FROM ${FINAL_BASE_IMAGE:-mcr.microsoft.com/dotnet/runtime-deps:10.0} AS final
+FROM ${FINAL_BASE_IMAGE:-mcr.microsoft.com/dotnet/runtime-deps:11.0} AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["./ApiTUI"]

@@ -14,17 +14,17 @@ public sealed record HeaderName
     {
         if (string.IsNullOrEmpty(value))
         {
-            return Result<HeaderName>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.HeaderNameEmpty);
+            return new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.HeaderNameEmpty);
         }
 
         var invalidChars = value.Where(c => !IsTokenChar(c)).Distinct().ToArray();
         if (invalidChars.Length > 0)
         {
-            return Result<HeaderName>.Failure(ErrorsReasons.InvalidInput,
+            return new Error(ErrorsReasons.InvalidInput,
                 DomainErrorCodes.HeaderNameInvalidChars, Describe(invalidChars));
         }
 
-        return Result<HeaderName>.Success(new HeaderName(value));
+        return new HeaderName(value);
     }
 
     private static bool IsTokenChar(char c) => char.IsAsciiLetterOrDigit(c) || ExtraTokenChars.Contains(c);

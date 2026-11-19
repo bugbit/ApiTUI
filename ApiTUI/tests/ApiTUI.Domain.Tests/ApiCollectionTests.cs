@@ -11,10 +11,10 @@ public sealed class ApiCollectionTests
 
         var result = ApiCollection.Create(id, "  Favorites  ");
 
-        Assert.True(result.IsSuccess);
-        Assert.Same(id, result.Value.Id);
-        Assert.Equal("Favorites", result.Value.Name.Value);
-        Assert.Empty(result.Value.Variables);
+        var value = result.AssertSuccess();
+        Assert.Same(id, value.Id);
+        Assert.Equal("Favorites", value.Name.Value);
+        Assert.Empty(value.Variables);
     }
 
     [Fact]
@@ -25,8 +25,7 @@ public sealed class ApiCollectionTests
 
         var result = ApiCollection.Create(CollectionId(), "Favorites", [first, second]);
 
-        Assert.True(result.IsSuccess);
-        Assert.Collection(result.Value.Variables,
+        Assert.Collection(result.AssertSuccess().Variables,
             item => Assert.Same(first, item),
             item => Assert.Same(second, item));
     }
@@ -37,10 +36,10 @@ public sealed class ApiCollectionTests
         var result = ApiCollection.Create(CollectionId(), "Favorites",
             [Variable("token", "first"), Variable("token", "second")]);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.VarValueListDuplicated, result.Error.Code);
-        Assert.Equal("token", Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueListDuplicated, error.Code);
+        Assert.Equal("token", Assert.Single(error.Args));
     }
 
     [Fact]
@@ -48,22 +47,20 @@ public sealed class ApiCollectionTests
     {
         var result = ApiCollection.Create(null, "Favorites");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiCollectionIdRequired, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.IdNull, error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiCollectionIdRequired, error.Code);
     }
 
     [Fact]
     public void Create_InvalidName_PropagatesItemNameError()
     {
         var expected = ItemName.Create("CON");
-        Assert.False(expected.IsSuccess);
 
         var result = ApiCollection.Create(CollectionId(), "CON");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(expected.Error.Code, result.Error.Code);
-        Assert.Equal(expected.Error.Args, result.Error.Args);
+        Assert.Equal(expected.AssertFailure().Code, result.AssertFailure().Code);
+        Assert.Equal(expected.AssertFailure().Args, result.AssertFailure().Args);
     }
 
     [Fact]
@@ -71,13 +68,11 @@ public sealed class ApiCollectionTests
     {
         var first = ApiCollection.Create(CollectionId("collection-1"), "First");
         var second = ApiCollection.Create(CollectionId("collection-1"), "Second");
-        Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
 
-        Assert.Equal(first.Value, second.Value);
-        Assert.True(first.Value == second.Value);
-        Assert.False(first.Value != second.Value);
-        Assert.Equal(first.Value.GetHashCode(), second.Value.GetHashCode());
+        Assert.Equal(first.AssertSuccess(), second.AssertSuccess());
+        Assert.True(first.AssertSuccess() == second.AssertSuccess());
+        Assert.False(first.AssertSuccess() != second.AssertSuccess());
+        Assert.Equal(first.AssertSuccess().GetHashCode(), second.AssertSuccess().GetHashCode());
     }
 
     [Fact]
@@ -85,26 +80,21 @@ public sealed class ApiCollectionTests
     {
         var first = ApiCollection.Create(CollectionId("collection-1"), "First");
         var second = ApiCollection.Create(CollectionId("collection-2"), "First");
-        Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
 
-        Assert.NotEqual(first.Value, second.Value);
-        Assert.True(first.Value != second.Value);
+        Assert.NotEqual(first.AssertSuccess(), second.AssertSuccess());
+        Assert.True(first.AssertSuccess() != second.AssertSuccess());
     }
 
     private static ApiCollectionId CollectionId(string value = "collection-1")
     {
         var result = ApiCollectionId.Create(value);
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return result.AssertSuccess();
     }
 
     private static VarValue Variable(string name, string value)
     {
         var varName = VarName.Create(name);
-        Assert.True(varName.IsSuccess);
-        var variable = VarValue.Create(varName.Value, new StringWithVars(value));
-        Assert.True(variable.IsSuccess);
-        return variable.Value;
+        var variable = VarValue.Create(varName.AssertSuccess(), new StringWithVars(value));
+        return variable.AssertSuccess();
     }
 }

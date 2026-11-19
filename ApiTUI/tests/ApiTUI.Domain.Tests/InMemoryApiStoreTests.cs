@@ -9,9 +9,9 @@ public sealed class InMemoryApiStoreTests
     public async Task Environment_FindReturnsNullThenTracksReplacement()
     {
         var store = new InMemoryApiStore();
-        var id = Value(ApiEnvironmentId.Create("id"));
-        var first = Value(ApiEnvironment.Create(id, "First"));
-        var second = Value(ApiEnvironment.Create(id, "Second"));
+        var id = ApiEnvironmentId.Create("id").AssertSuccess();
+        var first = ApiEnvironment.Create(id, "First").AssertSuccess();
+        var second = ApiEnvironment.Create(id, "Second").AssertSuccess();
 
         Assert.Null(await store.FindAsync(id, CancellationToken.None));
         store.Add(first);
@@ -25,9 +25,9 @@ public sealed class InMemoryApiStoreTests
     public async Task Collection_FindReturnsNullThenTracksReplacement()
     {
         var store = new InMemoryApiStore();
-        var id = Value(ApiCollectionId.Create("id"));
-        var first = Value(ApiCollection.Create(id, "First"));
-        var second = Value(ApiCollection.Create(id, "Second"));
+        var id = ApiCollectionId.Create("id").AssertSuccess();
+        var first = ApiCollection.Create(id, "First").AssertSuccess();
+        var second = ApiCollection.Create(id, "Second").AssertSuccess();
 
         Assert.Null(await store.FindAsync(id, CancellationToken.None));
         store.Add(first);
@@ -41,10 +41,10 @@ public sealed class InMemoryApiStoreTests
     public async Task Folder_FindReturnsNullThenTracksReplacement()
     {
         var store = new InMemoryApiStore();
-        var id = Value(ApiFolderId.Create("id"));
-        var collectionId = Value(ApiCollectionId.Create("collection"));
-        var first = Value(ApiFolder.CreateInCollection(id, collectionId, "First"));
-        var second = Value(ApiFolder.CreateInCollection(id, collectionId, "Second"));
+        var id = ApiFolderId.Create("id").AssertSuccess();
+        var collectionId = ApiCollectionId.Create("collection").AssertSuccess();
+        var first = ApiFolder.CreateInCollection(id, collectionId, "First").AssertSuccess();
+        var second = ApiFolder.CreateInCollection(id, collectionId, "Second").AssertSuccess();
 
         Assert.Null(await store.FindAsync(id, CancellationToken.None));
         store.Add(first);
@@ -54,9 +54,4 @@ public sealed class InMemoryApiStoreTests
         Assert.Throws<OperationCanceledException>(() => { _ = store.FindAsync(id, new CancellationToken(true)); });
     }
 
-    private static T Value<T>(Result<T> result)
-    {
-        Assert.True(result.IsSuccess);
-        return result.Value;
-    }
 }

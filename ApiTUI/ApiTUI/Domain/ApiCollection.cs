@@ -22,22 +22,22 @@ public sealed class ApiCollection : IEquatable<ApiCollection>
     {
         if (id is null)
         {
-            return Result<ApiCollection>.Failure(ErrorsReasons.IdNull, DomainErrorCodes.ApiCollectionIdRequired);
+            return new Error(ErrorsReasons.IdNull, DomainErrorCodes.ApiCollectionIdRequired);
         }
 
         var itemName = ItemName.Create(name);
-        if (!itemName.IsSuccess)
+        if (itemName is Error itemNameError)
         {
-            return Result<ApiCollection>.Failure(itemName.Error);
+            return itemNameError;
         }
 
         var variableList = VarValueList.Create(variables);
-        if (!variableList.IsSuccess)
+        if (variableList is Error variableListError)
         {
-            return Result<ApiCollection>.Failure(variableList.Error);
+            return variableListError;
         }
 
-        return Result<ApiCollection>.Success(new ApiCollection(id, itemName.Value, variableList.Value));
+        return new ApiCollection(id, (ItemName)itemName.Value, (IReadOnlyList<VarValue>)variableList.Value);
     }
 
     public bool Equals(ApiCollection? other) => other is not null && Id == other.Id;

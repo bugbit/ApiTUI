@@ -9,9 +9,9 @@ public sealed class VarValueListTests
     {
         var result = VarValueList.Create(null);
 
-        Assert.True(result.IsSuccess);
-        Assert.Empty(result.Value);
-        AssertReadOnly(result.Value);
+        var value = result.AssertSuccess();
+        Assert.Empty(value);
+        AssertReadOnly(value);
     }
 
     [Fact]
@@ -19,8 +19,7 @@ public sealed class VarValueListTests
     {
         var result = VarValueList.Create([]);
 
-        Assert.True(result.IsSuccess);
-        Assert.Empty(result.Value);
+        Assert.Empty(result.AssertSuccess());
     }
 
     [Fact]
@@ -31,8 +30,7 @@ public sealed class VarValueListTests
 
         var result = VarValueList.Create([first, second]);
 
-        Assert.True(result.IsSuccess);
-        Assert.Collection(result.Value,
+        Assert.Collection(result.AssertSuccess(),
             item => Assert.Same(first, item),
             item => Assert.Same(second, item));
     }
@@ -42,10 +40,10 @@ public sealed class VarValueListTests
     {
         var result = VarValueList.Create([Variable("first", "1"), null]);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.VarValueListItemNull, result.Error.Code);
-        Assert.Empty(result.Error.Args);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueListItemNull, error.Code);
+        Assert.Empty(error.Args);
     }
 
     [Theory]
@@ -58,10 +56,10 @@ public sealed class VarValueListTests
 
         var result = VarValueList.Create([first, duplicate]);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.VarValueListDuplicated, result.Error.Code);
-        Assert.Equal("token", Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueListDuplicated, error.Code);
+        Assert.Equal("token", Assert.Single(error.Args));
     }
 
     [Fact]
@@ -69,8 +67,7 @@ public sealed class VarValueListTests
     {
         var result = VarValueList.Create([Variable("token", "lower"), Variable("Token", "upper")]);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Value.Count);
+        Assert.Equal(2, result.AssertSuccess().Count);
     }
 
     [Fact]
@@ -81,11 +78,10 @@ public sealed class VarValueListTests
         var source = new List<VarValue?> { first, second };
 
         var result = VarValueList.Create(source);
-        Assert.True(result.IsSuccess);
         source.Clear();
         source.Add(Variable("replacement", "3"));
 
-        Assert.Collection(result.Value,
+        Assert.Collection(result.AssertSuccess(),
             item => Assert.Same(first, item),
             item => Assert.Same(second, item));
     }
@@ -94,8 +90,7 @@ public sealed class VarValueListTests
     public void Create_ResultCannotBeModifiedThroughListInterface()
     {
         var result = VarValueList.Create([Variable("token", "secret")]);
-        Assert.True(result.IsSuccess);
-        var list = Assert.IsAssignableFrom<IList<VarValue>>(result.Value);
+        var list = Assert.IsAssignableFrom<IList<VarValue>>(result.AssertSuccess());
 
         Assert.True(list.IsReadOnly);
         Assert.Throws<NotSupportedException>(() => list[0] = Variable("other", "value"));
@@ -110,9 +105,7 @@ public sealed class VarValueListTests
     private static VarValue Variable(string name, string? value, bool enabled = true)
     {
         var varName = VarName.Create(name);
-        Assert.True(varName.IsSuccess);
-        var variable = VarValue.Create(varName.Value, new StringWithVars(value), enabled);
-        Assert.True(variable.IsSuccess);
-        return variable.Value;
+        var variable = VarValue.Create(varName.AssertSuccess(), new StringWithVars(value), enabled);
+        return variable.AssertSuccess();
     }
 }

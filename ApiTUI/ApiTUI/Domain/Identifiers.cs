@@ -14,7 +14,7 @@ public abstract record Identifier
         var normalizedId = id?.Trim();
 
         if (string.IsNullOrWhiteSpace(normalizedId))
-            return Result<T>.Failure(ErrorsReasons.IdNull, DomainErrorCodes.IdentifierRequired, typeof(T).Name);
+            return new Error(ErrorsReasons.IdNull, DomainErrorCodes.IdentifierRequired, typeof(T).Name);
 
         return factory(normalizedId);
     }

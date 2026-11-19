@@ -11,8 +11,7 @@ public sealed class IdentifiersTests
     {
         var result = ApiRequestId.Create(value);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(value, result.Value.Id);
+        Assert.Equal(value, result.AssertSuccess().Id);
     }
 
     [Theory]
@@ -22,8 +21,7 @@ public sealed class IdentifiersTests
     {
         var result = ApiCollectionId.Create(value);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(value, result.Value.Id);
+        Assert.Equal(value, result.AssertSuccess().Id);
     }
 
     [Theory]
@@ -33,8 +31,7 @@ public sealed class IdentifiersTests
     {
         var result = ApiEnvironmentId.Create(value);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(value, result.Value.Id);
+        Assert.Equal(value, result.AssertSuccess().Id);
     }
 
     [Theory]
@@ -45,8 +42,7 @@ public sealed class IdentifiersTests
     {
         var result = ApiRequestId.Create(value);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(expected, result.Value.Id);
+        Assert.Equal(expected, result.AssertSuccess().Id);
     }
 
     [Fact]
@@ -54,8 +50,7 @@ public sealed class IdentifiersTests
     {
         var result = ApiEnvironmentId.Create("  local  ");
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal("local", result.Value.Id);
+        Assert.Equal("local", result.AssertSuccess().Id);
     }
 
     [Theory]
@@ -67,10 +62,10 @@ public sealed class IdentifiersTests
     {
         var result = ApiRequestId.Create(value);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.IdentifierRequired, result.Error.Code);
-        Assert.Equal(nameof(ApiRequestId), Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.IdNull, error.Reason);
+        Assert.Equal(DomainErrorCodes.IdentifierRequired, error.Code);
+        Assert.Equal(nameof(ApiRequestId), Assert.Single(error.Args));
     }
 
     [Theory]
@@ -82,10 +77,10 @@ public sealed class IdentifiersTests
     {
         var result = ApiCollectionId.Create(value);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.IdentifierRequired, result.Error.Code);
-        Assert.Equal(nameof(ApiCollectionId), Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.IdNull, error.Reason);
+        Assert.Equal(DomainErrorCodes.IdentifierRequired, error.Code);
+        Assert.Equal(nameof(ApiCollectionId), Assert.Single(error.Args));
     }
 
     [Theory]
@@ -97,10 +92,10 @@ public sealed class IdentifiersTests
     {
         var result = ApiEnvironmentId.Create(value);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.IdentifierRequired, result.Error.Code);
-        Assert.Equal(nameof(ApiEnvironmentId), Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.IdNull, error.Reason);
+        Assert.Equal(DomainErrorCodes.IdentifierRequired, error.Code);
+        Assert.Equal(nameof(ApiEnvironmentId), Assert.Single(error.Args));
     }
 
     [Fact]
@@ -139,21 +134,18 @@ public sealed class IdentifiersTests
     private static ApiRequestId CreateRequestId(string value)
     {
         var result = ApiRequestId.Create(value);
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return result.AssertSuccess();
     }
 
     private static ApiCollectionId CreateCollectionId(string value)
     {
         var result = ApiCollectionId.Create(value);
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return result.AssertSuccess();
     }
 
     private static ApiEnvironmentId CreateEnvironmentId(string value)
     {
         var result = ApiEnvironmentId.Create(value);
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return result.AssertSuccess();
     }
 }

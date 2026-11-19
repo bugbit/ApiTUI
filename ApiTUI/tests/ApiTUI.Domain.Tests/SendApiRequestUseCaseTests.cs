@@ -19,17 +19,17 @@ public sealed class SendApiRequestUseCaseTests
 
         var result = await useCase.ExecuteAsync(request, null, CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
         var sent = Assert.IsType<HttpRequestData>(sender.Request);
         Assert.Equal(RequestMethod.Post, sent.Method);
         Assert.Equal("https://example.test/api", sent.Url.AbsoluteUri);
         Assert.Equal(new[] { new KeyValuePair<string, string>("X-One", "1"), new("X-One", "2") }, sent.Headers);
         Assert.Equal("body", sent.Body);
-        Assert.Equal(201, result.Value.StatusCode);
-        Assert.Equal("Created", result.Value.ReasonPhrase);
-        Assert.Same(sender.Response.Headers, result.Value.Headers);
-        Assert.Equal("response", result.Value.Body);
-        Assert.Equal(TimeSpan.FromMilliseconds(1250), result.Value.Duration);
+        var value = result.AssertSuccess();
+        Assert.Equal(201, value.StatusCode);
+        Assert.Equal("Created", value.ReasonPhrase);
+        Assert.Same(sender.Response.Headers, value.Headers);
+        Assert.Equal("response", value.Body);
+        Assert.Equal(TimeSpan.FromMilliseconds(1250), value.Duration);
     }
 
     [Theory]
@@ -43,10 +43,10 @@ public sealed class SendApiRequestUseCaseTests
         var result = await CreateUseCase(sender)
             .ExecuteAsync(Request(headers: [Header("X-Test", value)]), null, CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(ApplicationErrorCodes.HeaderValueInvalid, result.Error.Code);
-        Assert.Equal("X-Test", Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(ApplicationErrorCodes.HeaderValueInvalid, error.Code);
+        Assert.Equal("X-Test", Assert.Single(error.Args));
         Assert.Null(sender.Request);
     }
 
@@ -63,9 +63,9 @@ public sealed class SendApiRequestUseCaseTests
 
         var result = await CreateUseCase(sender).ExecuteAsync(request, null, CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ApplicationErrorCodes.UnresolvedVariables, result.Error.Code);
-        Assert.Equal("baseUrl", Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ApplicationErrorCodes.UnresolvedVariables, error.Code);
+        Assert.Equal("baseUrl", Assert.Single(error.Args));
         Assert.Null(sender.Request);
     }
 
@@ -75,8 +75,7 @@ public sealed class SendApiRequestUseCaseTests
         var result = await CreateUseCase(new FakeHttpSender()).ExecuteAsync(
             Request("{{b}}/{{a}}", "{{b}}", [Header("X-Test", "{{c}}")]), null, CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal("b, a, c", Assert.Single(result.Error.Args));
+        Assert.Equal("b, a, c", Assert.Single(result.AssertFailure().Args));
     }
 
     [Theory]
@@ -88,7 +87,7 @@ public sealed class SendApiRequestUseCaseTests
         var result = await CreateUseCase(sender)
             .ExecuteAsync(Request(headers: [Header("X-Test", value, false)]), null, CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        result.AssertSuccess();
         Assert.Empty(Assert.IsType<HttpRequestData>(sender.Request).Headers);
     }
 
@@ -105,9 +104,9 @@ public sealed class SendApiRequestUseCaseTests
         var result = await CreateUseCase(sender)
             .ExecuteAsync(Request(url), null, CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(code, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(code, error.Code);
         Assert.Null(sender.Request);
     }
 
@@ -120,7 +119,7 @@ public sealed class SendApiRequestUseCaseTests
         var result = await CreateUseCase(sender)
             .ExecuteAsync(Request(body: body, headers: [Header("X-Empty", null)]), null, CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        result.AssertSuccess();
         var sent = Assert.IsType<HttpRequestData>(sender.Request);
         Assert.Null(sent.Body);
         Assert.Equal(string.Empty, Assert.Single(sent.Headers).Value);
@@ -136,8 +135,7 @@ public sealed class SendApiRequestUseCaseTests
         var result = await CreateUseCase(sender)
             .ExecuteAsync(Request(), null, cancellation.Token);
 
-        Assert.False(result.IsSuccess);
-        Assert.Same(error, result.Error);
+        Assert.Same(error, result.AssertFailure());
         Assert.Equal(cancellation.Token, sender.Token);
     }
 
@@ -161,27 +159,27 @@ public sealed class SendApiRequestUseCaseTests
     {
         var sender = new FakeHttpSender();
         var store = new InMemoryApiStore();
-        var environment = Value(ApiEnvironment.Create(Value(ApiEnvironmentId.Create("env")), "Environment",
-            [Variable("host", "example.test"), Variable("scope", "environment", environmentEnabled)]));
-        var collection = Value(ApiCollection.Create(CollectionId(), "Collection",
-            [Variable("scope", "collection"), Variable("onlyCollection", "c")]));
-        var root = Value(ApiFolder.CreateInCollection(FolderId("root"), collection.Id, "Root",
-            [Variable("scope", rootValue, rootValue is not null), Variable("onlyRoot", "r")]));
-        var middle = Value(ApiFolder.CreateInFolder(FolderId("middle"), root.Id, "Middle", [Variable("onlyMiddle", "m")]));
-        var leaf = Value(ApiFolder.CreateInFolder(FolderId("leaf"), middle.Id, "Leaf",
-            [Variable("scope", leafValue, leafValue is not null), Variable("onlyLeaf", "l")]));
+        var environment = ApiEnvironment.Create(ApiEnvironmentId.Create("env").AssertSuccess(), "Environment",
+            [Variable("host", "example.test"), Variable("scope", "environment", environmentEnabled)]).AssertSuccess();
+        var collection = ApiCollection.Create(CollectionId(), "Collection",
+            [Variable("scope", "collection"), Variable("onlyCollection", "c")]).AssertSuccess();
+        var root = ApiFolder.CreateInCollection(FolderId("root"), collection.Id, "Root",
+            [Variable("scope", rootValue, rootValue is not null), Variable("onlyRoot", "r")]).AssertSuccess();
+        var middle = ApiFolder.CreateInFolder(FolderId("middle"), root.Id, "Middle", [Variable("onlyMiddle", "m")]).AssertSuccess();
+        var leaf = ApiFolder.CreateInFolder(FolderId("leaf"), middle.Id, "Leaf",
+            [Variable("scope", leafValue, leafValue is not null), Variable("onlyLeaf", "l")]).AssertSuccess();
         store.Add(environment);
         store.Add(collection);
         store.Add(root);
         store.Add(middle);
         store.Add(leaf);
-        var request = Value(ApiRequest.CreateInFolder(Value(ApiRequestId.Create("request")), leaf.Id, "Request",
+        var request = ApiRequest.CreateInFolder(ApiRequestId.Create("request").AssertSuccess(), leaf.Id, "Request",
             url: new StringWithVars("https://{{host}}/{{scope}}"),
-            body: new StringWithVars("{{onlyCollection}}/{{onlyRoot}}/{{onlyMiddle}}/{{onlyLeaf}}")));
+            body: new StringWithVars("{{onlyCollection}}/{{onlyRoot}}/{{onlyMiddle}}/{{onlyLeaf}}")).AssertSuccess();
 
         var result = await CreateUseCase(sender, store).ExecuteAsync(request, environment.Id, CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        result.AssertSuccess();
         var sent = Assert.IsType<HttpRequestData>(sender.Request);
         Assert.Equal($"https://example.test/{expected}", sent.Url.AbsoluteUri);
         Assert.Equal("c/r/m/l", sent.Body);
@@ -192,13 +190,12 @@ public sealed class SendApiRequestUseCaseTests
     {
         var sender = new FakeHttpSender();
         var store = new InMemoryApiStore();
-        store.Add(Value(ApiCollection.Create(CollectionId(), "Collection")));
-        store.Add(Value(ApiEnvironment.Create(Value(ApiEnvironmentId.Create("env")), "Environment", [Variable("host", "example.test")])));
+        store.Add(ApiCollection.Create(CollectionId(), "Collection").AssertSuccess());
+        store.Add(ApiEnvironment.Create(ApiEnvironmentId.Create("env").AssertSuccess(), "Environment", [Variable("host", "example.test")]).AssertSuccess());
 
         var result = await CreateUseCase(sender, store).ExecuteAsync(Request("https://{{host}}/"), null, CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ApplicationErrorCodes.UnresolvedVariables, result.Error.Code);
+        Assert.Equal(ApplicationErrorCodes.UnresolvedVariables, result.AssertFailure().Code);
         Assert.Null(sender.Request);
     }
 
@@ -207,18 +204,17 @@ public sealed class SendApiRequestUseCaseTests
     {
         var sender = new FakeHttpSender();
         var store = new InMemoryApiStore();
-        store.Add(Value(ApiCollection.Create(CollectionId(), "Collection",
-            [Variable("invalid", "a\r\nb"), Variable("literal", "{{other}}"), Variable("other", "second"), Variable("empty", null)])));
+        store.Add(ApiCollection.Create(CollectionId(), "Collection",
+            [Variable("invalid", "a\r\nb"), Variable("literal", "{{other}}"), Variable("other", "second"), Variable("empty", null)]).AssertSuccess());
         var useCase = CreateUseCase(sender, store);
 
         var rejected = await useCase.ExecuteAsync(Request(headers: [Header("X-Test", "{{invalid}}")]), null, CancellationToken.None);
-        Assert.False(rejected.IsSuccess);
-        Assert.Equal(ApplicationErrorCodes.HeaderValueInvalid, rejected.Error.Code);
+        Assert.Equal(ApplicationErrorCodes.HeaderValueInvalid, rejected.AssertFailure().Code);
         Assert.Null(sender.Request);
 
         var accepted = await useCase.ExecuteAsync(Request(body: "{{literal}}", headers: [Header("X-Test", "{{empty}}")]),
             null, CancellationToken.None);
-        Assert.True(accepted.IsSuccess);
+        accepted.AssertSuccess();
         var sent = Assert.IsType<HttpRequestData>(sender.Request);
         Assert.Equal("{{other}}", sent.Body);
         Assert.Equal(string.Empty, Assert.Single(sent.Headers).Value);
@@ -238,27 +234,27 @@ public sealed class SendApiRequestUseCaseTests
         var parentId = FolderId("parent");
         if (code == ApplicationErrorCodes.CollectionNotFound)
         {
-            store.Add(Value(ApiFolder.CreateInCollection(leafId, CollectionId(), "Leaf")));
+            store.Add(ApiFolder.CreateInCollection(leafId, CollectionId(), "Leaf").AssertSuccess());
         }
         else if (inFolder)
         {
-            store.Add(Value(ApiFolder.CreateInFolder(leafId, parentId, "Leaf")));
+            store.Add(ApiFolder.CreateInFolder(leafId, parentId, "Leaf").AssertSuccess());
             if (code == ApplicationErrorCodes.FolderCycle)
             {
-                store.Add(Value(ApiFolder.CreateInFolder(parentId, leafId, "Parent")));
+                store.Add(ApiFolder.CreateInFolder(parentId, leafId, "Parent").AssertSuccess());
             }
         }
 
         var request = inFolder
-            ? Value(ApiRequest.CreateInFolder(Value(ApiRequestId.Create("request")), leafId, "Request"))
+            ? ApiRequest.CreateInFolder(ApiRequestId.Create("request").AssertSuccess(), leafId, "Request").AssertSuccess()
             : Request();
-        var environmentId = code == ApplicationErrorCodes.EnvironmentNotFound ? Value(ApiEnvironmentId.Create("env")) : null;
+        var environmentId = code == ApplicationErrorCodes.EnvironmentNotFound ? ApiEnvironmentId.Create("env").AssertSuccess() : null;
         var result = await CreateUseCase(sender, store).ExecuteAsync(request, environmentId, CancellationToken.None);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(code, result.Error.Code);
-        Assert.Equal(expectedId, Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(code, error.Code);
+        Assert.Equal(expectedId, Assert.Single(error.Args));
         Assert.Null(sender.Request);
     }
 
@@ -267,44 +263,34 @@ public sealed class SendApiRequestUseCaseTests
         if (store is null)
         {
             store = new InMemoryApiStore();
-            store.Add(Value(ApiCollection.Create(CollectionId(), "Collection")));
+            store.Add(ApiCollection.Create(CollectionId(), "Collection").AssertSuccess());
         }
 
         return new SendApiRequestUseCase(sender, clock ?? TimeProvider.System, store, store, store);
     }
 
-    private static ApiCollectionId CollectionId() => Value(ApiCollectionId.Create("collection"));
-    private static ApiFolderId FolderId(string id) => Value(ApiFolderId.Create(id));
+    private static ApiCollectionId CollectionId() => ApiCollectionId.Create("collection").AssertSuccess();
+    private static ApiFolderId FolderId(string id) => ApiFolderId.Create(id).AssertSuccess();
 
     private static VarValue Variable(string name, string? value, bool enabled = true) =>
-        Value(VarValue.Create(Value(VarName.Create(name)), new StringWithVars(value), enabled));
+        VarValue.Create(VarName.Create(name).AssertSuccess(), new StringWithVars(value), enabled).AssertSuccess();
 
-    private static T Value<T>(Result<T> result)
-    {
-        Assert.True(result.IsSuccess);
-        return result.Value;
-    }
 
     private static ApiRequest Request(string? url = "https://example.test/api", string? body = null,
         IEnumerable<HeaderValue?>? headers = null)
     {
         var id = ApiRequestId.Create("request");
         var collection = ApiCollectionId.Create("collection");
-        Assert.True(id.IsSuccess);
-        Assert.True(collection.IsSuccess);
-        var result = ApiRequest.CreateInCollection(id.Value, collection.Value, "Request", RequestMethod.Post,
+        var result = ApiRequest.CreateInCollection(id.AssertSuccess(), collection.AssertSuccess(), "Request", RequestMethod.Post,
             new StringWithVars(url), headers, new StringWithVars(body));
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return result.AssertSuccess();
     }
 
     private static HeaderValue Header(string name, string? value, bool enabled = true)
     {
         var headerName = HeaderName.Create(name);
-        Assert.True(headerName.IsSuccess);
-        var result = HeaderValue.Create(headerName.Value, new StringWithVars(value), enabled);
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        var result = HeaderValue.Create(headerName.AssertSuccess(), new StringWithVars(value), enabled);
+        return result.AssertSuccess();
     }
 
     private sealed class TestTimeProvider : TimeProvider
@@ -327,7 +313,7 @@ public sealed class SendApiRequestUseCaseTests
             Request = request;
             Token = cancellationToken;
             OnSend?.Invoke();
-            return Task.FromResult(Error is null ? Result<HttpResponseData>.Success(Response) : Result<HttpResponseData>.Failure(Error));
+            return Task.FromResult<Result<HttpResponseData>>(Error is null ? Response : Error);
         }
     }
 }

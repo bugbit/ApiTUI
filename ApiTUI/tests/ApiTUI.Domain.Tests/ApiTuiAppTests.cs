@@ -15,8 +15,8 @@ public sealed class ApiTuiAppTests
     [Fact]
     public async Task Run_SuccessfulResponse_SendsLoginAndPrintsResult()
     {
-        var sender = new FakeHttpSender(Result<HttpResponseData>.Success(new HttpResponseData(200, "OK",
-            [new("Content-Type", "application/json")], """{"token":"abc"}""")));
+        var sender = new FakeHttpSender(new HttpResponseData(200, "OK",
+            [new("Content-Type", "application/json")], """{"token":"abc"}"""));
 
         var output = await RunAsync(sender, "es");
 
@@ -37,7 +37,7 @@ public sealed class ApiTuiAppTests
     [Fact]
     public async Task Run_Failure_PrintsTranslatedError()
     {
-        var sender = new FakeHttpSender(Result<HttpResponseData>.Failure(ErrorsReasons.HttpFailure,
+        var sender = new FakeHttpSender(new Error(ErrorsReasons.HttpFailure,
             ApplicationErrorCodes.HttpRequestFailed, "NameResolutionError"));
 
         var output = await RunAsync(sender, "en");
@@ -51,7 +51,7 @@ public sealed class ApiTuiAppTests
     [Fact]
     public async Task Run_Cancelled_PropagatesCancellation()
     {
-        var sender = new FakeHttpSender(Result<HttpResponseData>.Success(new HttpResponseData(200, "OK", [], "")));
+        var sender = new FakeHttpSender(new HttpResponseData(200, "OK", [], ""));
         var app = CreateApp(sender, "es");
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => app.RunAsync(new CancellationToken(true)));

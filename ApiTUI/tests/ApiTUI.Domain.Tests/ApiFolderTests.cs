@@ -12,12 +12,12 @@ public sealed class ApiFolderTests
 
         var result = ApiFolder.CreateInCollection(id, collectionId, "  Auth  ");
 
-        Assert.True(result.IsSuccess);
-        Assert.Same(id, result.Value.Id);
-        Assert.Equal("Auth", result.Value.Name.Value);
-        Assert.Same(collectionId, result.Value.CollectionId);
-        Assert.Null(result.Value.ParentFolderId);
-        Assert.Empty(result.Value.Variables);
+        var value = result.AssertSuccess();
+        Assert.Same(id, value.Id);
+        Assert.Equal("Auth", value.Name.Value);
+        Assert.Same(collectionId, value.CollectionId);
+        Assert.Null(value.ParentFolderId);
+        Assert.Empty(value.Variables);
     }
 
     [Theory]
@@ -32,8 +32,7 @@ public sealed class ApiFolderTests
             ? ApiFolder.CreateInFolder(FolderId("folder-2"), FolderId("folder-1"), "Nested", [first, second])
             : ApiFolder.CreateInCollection(FolderId(), CollectionId(), "Root", [first, second]);
 
-        Assert.True(result.IsSuccess);
-        Assert.Collection(result.Value.Variables,
+        Assert.Collection(result.AssertSuccess().Variables,
             item => Assert.Same(first, item),
             item => Assert.Same(second, item));
     }
@@ -47,9 +46,9 @@ public sealed class ApiFolderTests
             ? ApiFolder.CreateInFolder(FolderId("folder-2"), FolderId("folder-1"), "Nested", [null])
             : ApiFolder.CreateInCollection(FolderId(), CollectionId(), "Root", [null]);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.VarValueListItemNull, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueListItemNull, error.Code);
     }
 
     [Theory]
@@ -62,10 +61,10 @@ public sealed class ApiFolderTests
             ? ApiFolder.CreateInFolder(FolderId("folder-2"), FolderId("folder-1"), "Nested", variables)
             : ApiFolder.CreateInCollection(FolderId(), CollectionId(), "Root", variables);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.VarValueListDuplicated, result.Error.Code);
-        Assert.Equal("token", Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueListDuplicated, error.Code);
+        Assert.Equal("token", Assert.Single(error.Args));
     }
 
     [Fact]
@@ -76,11 +75,11 @@ public sealed class ApiFolderTests
 
         var result = ApiFolder.CreateInFolder(id, parentFolderId, "OAuth");
 
-        Assert.True(result.IsSuccess);
-        Assert.Same(id, result.Value.Id);
-        Assert.Equal("OAuth", result.Value.Name.Value);
-        Assert.Null(result.Value.CollectionId);
-        Assert.Same(parentFolderId, result.Value.ParentFolderId);
+        var value = result.AssertSuccess();
+        Assert.Same(id, value.Id);
+        Assert.Equal("OAuth", value.Name.Value);
+        Assert.Null(value.CollectionId);
+        Assert.Same(parentFolderId, value.ParentFolderId);
     }
 
     [Theory]
@@ -92,8 +91,7 @@ public sealed class ApiFolderTests
             ? ApiFolder.CreateInFolder(FolderId("folder-2"), FolderId("folder-1"), "Nested")
             : ApiFolder.CreateInCollection(FolderId(), CollectionId(), "Root");
 
-        Assert.True(result.IsSuccess);
-        Assert.Empty(result.Value.Variables);
+        Assert.Empty(result.AssertSuccess().Variables);
     }
 
     [Theory]
@@ -105,9 +103,9 @@ public sealed class ApiFolderTests
             ? ApiFolder.CreateInFolder(null, FolderId(), "Folder")
             : ApiFolder.CreateInCollection(null, CollectionId(), "Folder");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiFolderIdRequired, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.IdNull, error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiFolderIdRequired, error.Code);
     }
 
     [Fact]
@@ -115,9 +113,9 @@ public sealed class ApiFolderTests
     {
         var result = ApiFolder.CreateInCollection(FolderId(), null, "Folder");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiFolderLocationRequired, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.IdNull, error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiFolderLocationRequired, error.Code);
     }
 
     [Fact]
@@ -125,9 +123,9 @@ public sealed class ApiFolderTests
     {
         var result = ApiFolder.CreateInFolder(FolderId(), null, "Folder");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiFolderLocationRequired, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.IdNull, error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiFolderLocationRequired, error.Code);
     }
 
     [Fact]
@@ -137,9 +135,9 @@ public sealed class ApiFolderTests
 
         var result = ApiFolder.CreateInFolder(id, FolderId(), "Folder");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiFolderParentIsSelf, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiFolderParentIsSelf, error.Code);
     }
 
     [Theory]
@@ -148,15 +146,13 @@ public sealed class ApiFolderTests
     public void Create_InvalidName_PropagatesItemNameError(bool inFolder)
     {
         var expected = ItemName.Create("CON");
-        Assert.False(expected.IsSuccess);
 
         var result = inFolder
             ? ApiFolder.CreateInFolder(FolderId("folder-2"), FolderId("folder-1"), "CON")
             : ApiFolder.CreateInCollection(FolderId(), CollectionId(), "CON");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(expected.Error.Code, result.Error.Code);
-        Assert.Equal(expected.Error.Args, result.Error.Args);
+        Assert.Equal(expected.AssertFailure().Code, result.AssertFailure().Code);
+        Assert.Equal(expected.AssertFailure().Args, result.AssertFailure().Args);
     }
 
     [Fact]
@@ -164,13 +160,11 @@ public sealed class ApiFolderTests
     {
         var first = ApiFolder.CreateInCollection(FolderId("folder-1"), CollectionId(), "First");
         var second = ApiFolder.CreateInFolder(FolderId("folder-1"), FolderId("parent"), "Second");
-        Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
 
-        Assert.Equal(first.Value, second.Value);
-        Assert.True(first.Value == second.Value);
-        Assert.False(first.Value != second.Value);
-        Assert.Equal(first.Value.GetHashCode(), second.Value.GetHashCode());
+        Assert.Equal(first.AssertSuccess(), second.AssertSuccess());
+        Assert.True(first.AssertSuccess() == second.AssertSuccess());
+        Assert.False(first.AssertSuccess() != second.AssertSuccess());
+        Assert.Equal(first.AssertSuccess().GetHashCode(), second.AssertSuccess().GetHashCode());
     }
 
     [Fact]
@@ -178,33 +172,27 @@ public sealed class ApiFolderTests
     {
         var first = ApiFolder.CreateInCollection(FolderId("folder-1"), CollectionId(), "Folder");
         var second = ApiFolder.CreateInCollection(FolderId("folder-2"), CollectionId(), "Folder");
-        Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
 
-        Assert.NotEqual(first.Value, second.Value);
-        Assert.True(first.Value != second.Value);
+        Assert.NotEqual(first.AssertSuccess(), second.AssertSuccess());
+        Assert.True(first.AssertSuccess() != second.AssertSuccess());
     }
 
     private static ApiFolderId FolderId(string value = "folder-1")
     {
         var result = ApiFolderId.Create(value);
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return result.AssertSuccess();
     }
 
     private static ApiCollectionId CollectionId()
     {
         var result = ApiCollectionId.Create("collection-1");
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return result.AssertSuccess();
     }
 
     private static VarValue Variable(string name, string value)
     {
         var varName = VarName.Create(name);
-        Assert.True(varName.IsSuccess);
-        var variable = VarValue.Create(varName.Value, new StringWithVars(value));
-        Assert.True(variable.IsSuccess);
-        return variable.Value;
+        var variable = VarValue.Create(varName.AssertSuccess(), new StringWithVars(value));
+        return variable.AssertSuccess();
     }
 }

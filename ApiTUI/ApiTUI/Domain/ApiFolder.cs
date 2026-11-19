@@ -45,33 +45,33 @@ public sealed class ApiFolder : IEquatable<ApiFolder>
     {
         if (id is null)
         {
-            return Result<ApiFolder>.Failure(ErrorsReasons.IdNull, DomainErrorCodes.ApiFolderIdRequired);
+            return new Error(ErrorsReasons.IdNull, DomainErrorCodes.ApiFolderIdRequired);
         }
 
         if (collectionId is null && parentFolderId is null)
         {
-            return Result<ApiFolder>.Failure(ErrorsReasons.IdNull, DomainErrorCodes.ApiFolderLocationRequired);
+            return new Error(ErrorsReasons.IdNull, DomainErrorCodes.ApiFolderLocationRequired);
         }
 
         if (parentFolderId == id)
         {
-            return Result<ApiFolder>.Failure(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiFolderParentIsSelf);
+            return new Error(ErrorsReasons.InvalidInput, DomainErrorCodes.ApiFolderParentIsSelf);
         }
 
         var itemName = ItemName.Create(name);
-        if (!itemName.IsSuccess)
+        if (itemName is Error itemNameError)
         {
-            return Result<ApiFolder>.Failure(itemName.Error);
+            return itemNameError;
         }
 
         var variableList = VarValueList.Create(variables);
-        if (!variableList.IsSuccess)
+        if (variableList is Error variableListError)
         {
-            return Result<ApiFolder>.Failure(variableList.Error);
+            return variableListError;
         }
 
-        return Result<ApiFolder>.Success(new ApiFolder(id, itemName.Value, collectionId, parentFolderId,
-            variableList.Value));
+        return new ApiFolder(id, (ItemName)itemName.Value, collectionId, parentFolderId,
+            (IReadOnlyList<VarValue>)variableList.Value);
     }
 
     public bool Equals(ApiFolder? other) => other is not null && Id == other.Id;

@@ -16,9 +16,9 @@ public sealed class HeaderNameTests
     {
         var result = HeaderName.Create(value);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(value, result.Value.Value);
-        Assert.Equal(value, result.Value.ToString());
+        var headerName = result.AssertSuccess();
+        Assert.Equal(value, headerName.Value);
+        Assert.Equal(value, headerName.ToString());
     }
 
     [Theory]
@@ -41,10 +41,10 @@ public sealed class HeaderNameTests
     {
         var result = HeaderName.Create(value);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
         Assert.Equal(string.IsNullOrEmpty(value) ? DomainErrorCodes.HeaderNameEmpty : DomainErrorCodes.HeaderNameInvalidChars,
-            result.Error.Code);
+            error.Code);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class HeaderNameTests
             var character = (char)code;
             var result = HeaderName.Create(character.ToString());
 
-            Assert.Equal(allowed.Contains(character), result.IsSuccess);
+            Assert.Equal(allowed.Contains(character), result is HeaderName);
         }
     }
 
@@ -65,9 +65,9 @@ public sealed class HeaderNameTests
     {
         var result = HeaderName.Create("a@b@c/");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(DomainErrorCodes.HeaderNameInvalidChars, result.Error.Code);
-        Assert.Equal("'@', '/'", Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(DomainErrorCodes.HeaderNameInvalidChars, error.Code);
+        Assert.Equal("'@', '/'", Assert.Single(error.Args));
     }
 
     [Theory]
@@ -84,9 +84,9 @@ public sealed class HeaderNameTests
     {
         var result = HeaderName.Create("a" + character + "b");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(DomainErrorCodes.HeaderNameInvalidChars, result.Error.Code);
-        var argument = Assert.IsType<string>(Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(DomainErrorCodes.HeaderNameInvalidChars, error.Code);
+        var argument = Assert.IsType<string>(Assert.Single(error.Args));
         Assert.Equal(description, argument);
         Assert.DoesNotContain(argument, c => char.IsControl(c) || c == '\u2028');
     }
@@ -127,7 +127,6 @@ public sealed class HeaderNameTests
     private static HeaderName CreateName(string value)
     {
         var result = HeaderName.Create(value);
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return result.AssertSuccess();
     }
 }

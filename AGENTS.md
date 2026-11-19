@@ -4,11 +4,11 @@ Este fichero orienta a los agentes de código (Codex, Claude Code, etc.) que tra
 
 ## Contexto del proyecto
 
-ApiTUI es un cliente HTTP interactivo para terminal (estilo Postman, con estética Turbo Vision) en C#/.NET 10 con [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui). Es el Trabajo Fin de Máster (TFM) del Máster de Desarrollo con IA de BIG school; los requisitos de entrega están en `Docs/Documentacion-TFM.md`.
+ApiTUI es un cliente HTTP interactivo para terminal (estilo Postman, con estética Turbo Vision) en C# 15/.NET 11 con [Terminal.Gui](https://github.com/gui-cs/Terminal.Gui). Es el Trabajo Fin de Máster (TFM) del Máster de Desarrollo con IA de BIG school; los requisitos de entrega están en `Docs/Documentacion-TFM.md`.
 
-**Estado actual:** existe la solución `ApiTUI/ApiTUI.slnx`, una consola .NET 10 con Generic Host y tests de dominio, aplicación, adaptadores y localización. `SendApiRequestUseCase` envía peticiones mediante `IHttpSender` y `HttpClientSender`. Como prueba provisional, la consola hace login contra la TodoApi de pruebas local y muestra el resultado (es/en). El código vive en carpetas dentro de la consola; los proyectos por capa y la TUI siguen pendientes. El README distingue el estado actual del diseño previsto.
+**Estado actual:** existe la solución `ApiTUI/ApiTUI.slnx`, una consola .NET 11 con Generic Host y tests de dominio, aplicación, adaptadores y localización. `SendApiRequestUseCase` envía peticiones mediante `IHttpSender` y `HttpClientSender`. Como prueba provisional, la consola hace login contra la TodoApi de pruebas local y muestra el resultado (es/en). El código vive en carpetas dentro de la consola; los proyectos por capa y la TUI siguen pendientes. El README distingue el estado actual del diseño previsto.
 
-La solución también incluye una API TODO de pruebas en `ApiTUI/samples/TodoApi` y sus tests de integración en `ApiTUI/tests/TodoApi.Tests`. Estos dos proyectos requieren el SDK de .NET 11.
+La solución también incluye una API TODO de pruebas en `ApiTUI/samples/TodoApi` y sus tests de integración en `ApiTUI/tests/TodoApi.Tests`. Toda la solución apunta a `net11.0` y requiere el SDK de .NET 11.
 
 La documentación y el README están en español; mantén ese idioma en la documentación del proyecto.
 

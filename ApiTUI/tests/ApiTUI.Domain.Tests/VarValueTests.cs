@@ -12,10 +12,10 @@ public sealed class VarValueTests
 
         var result = VarValue.Create(name, value);
 
-        Assert.True(result.IsSuccess);
-        Assert.Same(name, result.Value.Name);
-        Assert.Same(value, result.Value.Value);
-        Assert.True(result.Value.Enabled);
+        var variable = result.AssertSuccess();
+        Assert.Same(name, variable.Name);
+        Assert.Same(value, variable.Value);
+        Assert.True(variable.Enabled);
     }
 
     [Fact]
@@ -23,8 +23,7 @@ public sealed class VarValueTests
     {
         var result = VarValue.Create(Name("baseUrl"), new StringWithVars("https://localhost"), enabled: false);
 
-        Assert.True(result.IsSuccess);
-        Assert.False(result.Value.Enabled);
+        Assert.False(result.AssertSuccess().Enabled);
     }
 
     [Theory]
@@ -35,8 +34,7 @@ public sealed class VarValueTests
     {
         var result = VarValue.Create(Name("authorization"), new StringWithVars(text));
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(text, result.Value.Value.Text);
+        Assert.Equal(text, result.AssertSuccess().Value.Text);
     }
 
     [Fact]
@@ -44,9 +42,9 @@ public sealed class VarValueTests
     {
         var result = VarValue.Create(Name("baseUrl"), null);
 
-        Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Value.Value);
-        Assert.Null(result.Value.Value.Text);
+        var value = result.AssertSuccess();
+        Assert.NotNull(value.Value);
+        Assert.Null(value.Value.Text);
     }
 
     [Theory]
@@ -56,17 +54,16 @@ public sealed class VarValueTests
     {
         var result = VarValue.Create(null, new StringWithVars("value"), enabled);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.VarValueNameRequired, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueNameRequired, error.Code);
     }
 
     [Fact]
     public void With_Disabled_OnlyChangesEnabledAndPreservesOriginal()
     {
         var result = VarValue.Create(Name("baseUrl"), new StringWithVars("https://localhost"));
-        Assert.True(result.IsSuccess);
-        var original = result.Value;
+        var original = result.AssertSuccess();
 
         var disabled = original with { Enabled = false };
 
@@ -81,12 +78,10 @@ public sealed class VarValueTests
     {
         var first = VarValue.Create(Name("baseUrl"), new StringWithVars("https://localhost"));
         var second = VarValue.Create(Name("baseUrl"), new StringWithVars("https://localhost"));
-        Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
 
-        Assert.Equal(first.Value, second.Value);
-        Assert.True(first.Value == second.Value);
-        Assert.Equal(first.Value.GetHashCode(), second.Value.GetHashCode());
+        Assert.Equal(first.AssertSuccess(), second.AssertSuccess());
+        Assert.True(first.AssertSuccess() == second.AssertSuccess());
+        Assert.Equal(first.AssertSuccess().GetHashCode(), second.AssertSuccess().GetHashCode());
     }
 
     [Theory]
@@ -98,16 +93,13 @@ public sealed class VarValueTests
     {
         var first = VarValue.Create(Name("baseUrl"), new StringWithVars("https://localhost"));
         var second = VarValue.Create(Name(name), new StringWithVars(text), enabled);
-        Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
 
-        Assert.NotEqual(first.Value, second.Value);
+        Assert.NotEqual(first.AssertSuccess(), second.AssertSuccess());
     }
 
     private static VarName Name(string value)
     {
         var result = VarName.Create(value);
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return result.AssertSuccess();
     }
 }

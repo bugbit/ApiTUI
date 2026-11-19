@@ -21,9 +21,9 @@ public sealed partial record StringWithVars(string? Text)
         foreach (Match match in VarPattern().Matches(Text))
         {
             var name = VarName.Create(match.Groups[1].Value);
-            if (name.IsSuccess && seen.Add(name.Value))
+            if (name is VarName varName && seen.Add(varName))
             {
-                names.Add(name.Value);
+                names.Add(varName);
             }
         }
 
@@ -41,7 +41,7 @@ public sealed partial record StringWithVars(string? Text)
         return VarPattern().Replace(Text, match =>
         {
             var name = VarName.Create(match.Groups[1].Value);
-            return name.IsSuccess && variables.TryGetValue(name.Value, out var value)
+            return name is VarName varName && variables.TryGetValue(varName, out var value)
                 ? Format(value)
                 : match.Value;
         });

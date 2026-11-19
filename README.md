@@ -4,7 +4,7 @@ Cliente HTTP interactivo para terminal, desarrollado en .NET con [Terminal.Gui](
 
 Las colecciones y peticiones se organizarán en una jerarquía de carpetas y se guardarán como ficheros JSON. El proyecto está planteado para publicarse como ejecutable nativo mediante Native AOT y como imagen Docker.
 
-> **Estado del proyecto:** el dominio modela entornos, colecciones con variables, carpetas anidadas con sus propias variables y peticiones con nombres válidos para el sistema de archivos. La consola .NET 10 arranca con Generic Host, hace como prueba provisional un `POST /login` a la TodoApi local en `http://localhost:5080` con el caso de uso `SendApiRequestUseCase` y el adaptador con `HttpClient`, muestra por consola estado, duración, cabeceras y cuerpo, y termina. El envío resuelve variables de colección, entorno y carpetas desde un almacén en memoria. La TUI y la persistencia en disco siguen pendientes.
+> **Estado del proyecto:** el dominio modela entornos, colecciones con variables, carpetas anidadas con sus propias variables y peticiones con nombres válidos para el sistema de archivos. La consola .NET 11 arranca con Generic Host, hace como prueba provisional un `POST /login` a la TodoApi local en `http://localhost:5080` con el caso de uso `SendApiRequestUseCase` y el adaptador con `HttpClient`, muestra por consola estado, duración, cabeceras y cuerpo, y termina. El envío resuelve variables de colección, entorno y carpetas desde un almacén en memoria. La TUI y la persistencia en disco siguen pendientes.
 
 El envío admite cancelación y un límite de 100 segundos que cubre la respuesta completa. Las variables siguen la misma precedencia que [Bruno](https://docs.usebruno.com/variables/overview): la colección aporta los valores por defecto, el entorno seleccionado los sustituye y las carpetas aplican los suyos desde la raíz hasta la carpeta de la petición, que es la que más prioridad tiene. Las variables deshabilitadas se ignoran y un marcador válido sin valor genera un error. Las cabeceras deshabilitadas se ignoran y los valores con CR, LF o NUL se rechazan antes de enviar.
 
@@ -20,7 +20,7 @@ El envío admite cancelación y un límite de 100 segundos que cubre la respuest
 
 | Tecnología | Uso |
 | --- | --- |
-| C# y .NET 10 | Lenguaje y plataforma de desarrollo. |
+| C# 15 y .NET 11 | Lenguaje y plataforma de desarrollo. Los resultados de las operaciones usan union types (`Result<T>`). |
 | `Microsoft.Extensions.Hosting` | Arranque, inyección de dependencias y ciclo de vida de la consola. |
 | Terminal.Gui | Construcción de la interfaz TUI multiplataforma. |
 | `System.Text.Json` | Lectura y escritura de colecciones, peticiones y configuración JSON. |
@@ -65,7 +65,7 @@ Terminal.Gui dibuja la interfaz en la terminal; ApiTUI no requiere que el usuari
 
 Para compilar desde el código fuente:
 
-- SDK de .NET 11 para compilar la solución completa. La consola ApiTUI apunta a .NET 10.
+- SDK de .NET 11 para compilar la solución completa (todos los proyectos apuntan a `net11.0`).
 - Git.
 - Un terminal que admita entrada interactiva y las secuencias de control usadas por Terminal.Gui.
 
@@ -238,7 +238,7 @@ Los tests del envío usan dobles y no realizan conexiones de red. Los flujos de 
 
 ## API TODO de pruebas
 
-La solución requiere el SDK de .NET 11 para compilar la API de ejemplo y sus pruebas de integración. La consola ApiTUI sigue en .NET 10.
+La API de ejemplo y sus pruebas de integración se compilan con el mismo SDK de .NET 11 que el resto de la solución.
 
 Desde la raíz del repositorio, arranca el servidor local con:
 

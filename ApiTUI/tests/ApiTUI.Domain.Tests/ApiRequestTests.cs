@@ -16,8 +16,7 @@ public sealed class ApiRequestTests
         var result = ApiRequest.CreateInCollection(id, collectionId, "Login", RequestMethod.Post,
             url, [header], body);
 
-        Assert.True(result.IsSuccess);
-        var request = result.Value;
+        var request = result.AssertSuccess();
         Assert.Same(id, request.Id);
         Assert.Equal("Login", request.Name.Value);
         Assert.Equal(RequestMethod.Post, request.Method);
@@ -39,8 +38,7 @@ public sealed class ApiRequestTests
 
         var result = ApiRequest.CreateInFolder(id, folderId, "Search", RequestMethod.Query, url, [header], body);
 
-        Assert.True(result.IsSuccess);
-        var request = result.Value;
+        var request = result.AssertSuccess();
         Assert.Same(id, request.Id);
         Assert.Equal("Search", request.Name.Value);
         Assert.Equal(RequestMethod.Query, request.Method);
@@ -60,14 +58,14 @@ public sealed class ApiRequestTests
             ? ApiRequest.CreateInFolder(RequestId(), FolderId(), "Draft")
             : ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Draft");
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(RequestMethod.Get, result.Value.Method);
-        Assert.NotNull(result.Value.Url);
-        Assert.Null(result.Value.Url.Text);
-        Assert.NotNull(result.Value.Body);
-        Assert.Null(result.Value.Body.Text);
-        Assert.Empty(result.Value.Headers);
-        Assert.Null(result.Value.VarsOut);
+        var value = result.AssertSuccess();
+        Assert.Equal(RequestMethod.Get, value.Method);
+        Assert.NotNull(value.Url);
+        Assert.Null(value.Url.Text);
+        Assert.NotNull(value.Body);
+        Assert.Null(value.Body.Text);
+        Assert.Empty(value.Headers);
+        Assert.Null(value.VarsOut);
     }
 
     [Theory]
@@ -79,9 +77,9 @@ public sealed class ApiRequestTests
             ? ApiRequest.CreateInFolder(RequestId(), FolderId(), "Request", varsOut: [])
             : ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request", varsOut: []);
 
-        Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Value.VarsOut);
-        Assert.Empty(result.Value.VarsOut);
+        var varsOut = result.AssertSuccess().VarsOut;
+        Assert.NotNull(varsOut);
+        Assert.Empty(varsOut);
     }
 
     [Theory]
@@ -96,12 +94,12 @@ public sealed class ApiRequestTests
         var result = inFolder
             ? ApiRequest.CreateInFolder(RequestId(), FolderId(), "Request", varsOut: source)
             : ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request", varsOut: source);
-        Assert.True(result.IsSuccess);
 
         source.Clear();
 
-        Assert.NotNull(result.Value.VarsOut);
-        Assert.Equal(new[] { first, second }, result.Value.VarsOut);
+        var value = result.AssertSuccess();
+        Assert.NotNull(value.VarsOut);
+        Assert.Equal(new[] { first, second }, value.VarsOut);
     }
 
     [Fact]
@@ -109,8 +107,7 @@ public sealed class ApiRequestTests
     {
         var variable = Var("token", "value");
         var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request", varsOut: [variable]);
-        Assert.True(result.IsSuccess);
-        var list = Assert.IsAssignableFrom<IList<VarValue>>(result.Value.VarsOut);
+        var list = Assert.IsAssignableFrom<IList<VarValue>>(result.AssertSuccess().VarsOut);
 
         Assert.True(list.IsReadOnly);
         Assert.Throws<NotSupportedException>(() => list[0] = Var("other", "replacement"));
@@ -123,9 +120,9 @@ public sealed class ApiRequestTests
         var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request",
             varsOut: [Var("token", "value"), null]);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.VarValueListItemNull, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueListItemNull, error.Code);
     }
 
     [Fact]
@@ -134,10 +131,10 @@ public sealed class ApiRequestTests
         var result = ApiRequest.CreateInFolder(RequestId(), FolderId(), "Request",
             varsOut: [Var("token", "first"), Var("token", "second", enabled: false)]);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.VarValueListDuplicated, result.Error.Code);
-        Assert.Equal("token", Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.VarValueListDuplicated, error.Code);
+        Assert.Equal("token", Assert.Single(error.Args));
     }
 
     [Theory]
@@ -153,36 +150,31 @@ public sealed class ApiRequestTests
     {
         var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request", method);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(method, result.Value.Method);
+        Assert.Equal(method, result.AssertSuccess().Method);
     }
 
     [Fact]
     public void CreateInCollection_InvalidName_PropagatesItemNameError()
     {
         var nameError = ItemName.Create("CON");
-        Assert.False(nameError.IsSuccess);
 
         var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "CON");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(nameError.Error.Code, result.Error.Code);
-        Assert.Equal(nameError.Error.Args, result.Error.Args);
+        Assert.Equal(ErrorsReasons.InvalidInput, result.AssertFailure().Reason);
+        Assert.Equal(nameError.AssertFailure().Code, result.AssertFailure().Code);
+        Assert.Equal(nameError.AssertFailure().Args, result.AssertFailure().Args);
     }
 
     [Fact]
     public void CreateInFolder_InvalidName_PropagatesItemNameError()
     {
         var nameError = ItemName.Create("name.");
-        Assert.False(nameError.IsSuccess);
 
         var result = ApiRequest.CreateInFolder(RequestId(), FolderId(), "name.");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(nameError.Error.Code, result.Error.Code);
-        Assert.Equal(nameError.Error.Args, result.Error.Args);
+        Assert.Equal(ErrorsReasons.InvalidInput, result.AssertFailure().Reason);
+        Assert.Equal(nameError.AssertFailure().Code, result.AssertFailure().Code);
+        Assert.Equal(nameError.AssertFailure().Args, result.AssertFailure().Args);
     }
 
     [Theory]
@@ -192,9 +184,9 @@ public sealed class ApiRequestTests
     {
         var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request", (RequestMethod)method);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiRequestMethodInvalid, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiRequestMethodInvalid, error.Code);
     }
 
     [Theory]
@@ -206,10 +198,10 @@ public sealed class ApiRequestTests
             ? ApiRequest.CreateInFolder(null, FolderId(), "Request")
             : ApiRequest.CreateInCollection(null, CollectionId(), "Request");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiRequestIdRequired, result.Error.Code);
-        Assert.Empty(result.Error.Args);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.IdNull, error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiRequestIdRequired, error.Code);
+        Assert.Empty(error.Args);
     }
 
     [Theory]
@@ -221,9 +213,9 @@ public sealed class ApiRequestTests
             ? ApiRequest.CreateInFolder(RequestId(), null, "Request")
             : ApiRequest.CreateInCollection(RequestId(), null, "Request");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.IdNull, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiRequestLocationRequired, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.IdNull, error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiRequestLocationRequired, error.Code);
     }
 
     [Fact]
@@ -234,9 +226,9 @@ public sealed class ApiRequestTests
 
         var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Draft", url: url, body: body);
 
-        Assert.True(result.IsSuccess);
-        Assert.Same(url, result.Value.Url);
-        Assert.Same(body, result.Value.Body);
+        var value = result.AssertSuccess();
+        Assert.Same(url, value.Url);
+        Assert.Same(body, value.Body);
     }
 
     [Fact]
@@ -245,9 +237,9 @@ public sealed class ApiRequestTests
         var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request",
             headers: [Header("Accept", "application/json"), null]);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.ApiRequestHeaderNull, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.ApiRequestHeaderNull, error.Code);
     }
 
     [Fact]
@@ -258,14 +250,14 @@ public sealed class ApiRequestTests
         var third = Header("X-Custom", "{{value}}");
         var headers = new List<HeaderValue?> { first, second, third };
         var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request", headers: headers);
-        Assert.True(result.IsSuccess);
 
         headers[0] = third;
         headers.Clear();
 
-        Assert.Equal(new[] { first, second, third }, result.Value.Headers);
-        Assert.False(result.Value.Headers[1].Enabled);
-        Assert.Equal("{{value}}", result.Value.Headers[2].Value.Text);
+        var value = result.AssertSuccess();
+        Assert.Equal(new[] { first, second, third }, value.Headers);
+        Assert.False(value.Headers[1].Enabled);
+        Assert.Equal("{{value}}", value.Headers[2].Value.Text);
     }
 
     [Fact]
@@ -273,12 +265,12 @@ public sealed class ApiRequestTests
     {
         var header = Header("Accept", "application/json");
         var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request", headers: [header]);
-        Assert.True(result.IsSuccess);
-        var list = Assert.IsAssignableFrom<IList<HeaderValue>>(result.Value.Headers);
+        var value = result.AssertSuccess();
+        var list = Assert.IsAssignableFrom<IList<HeaderValue>>(value.Headers);
 
         Assert.True(list.IsReadOnly);
         Assert.Throws<NotSupportedException>(() => list[0] = Header("Accept", "text/plain"));
-        Assert.Same(header, Assert.Single(result.Value.Headers));
+        Assert.Same(header, Assert.Single(value.Headers));
     }
 
     [Fact]
@@ -287,13 +279,11 @@ public sealed class ApiRequestTests
         var first = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request");
         var second = ApiRequest.CreateInFolder(RequestId(), FolderId(), "Renamed", RequestMethod.Post,
             varsOut: [Var("token", "value")]);
-        Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
 
-        Assert.Equal(first.Value, second.Value);
-        Assert.True(first.Value == second.Value);
-        Assert.False(first.Value != second.Value);
-        Assert.Equal(first.Value.GetHashCode(), second.Value.GetHashCode());
+        Assert.Equal(first.AssertSuccess(), second.AssertSuccess());
+        Assert.True(first.AssertSuccess() == second.AssertSuccess());
+        Assert.False(first.AssertSuccess() != second.AssertSuccess());
+        Assert.Equal(first.AssertSuccess().GetHashCode(), second.AssertSuccess().GetHashCode());
     }
 
     [Fact]
@@ -301,61 +291,52 @@ public sealed class ApiRequestTests
     {
         var first = ApiRequest.CreateInCollection(RequestId("request-1"), CollectionId(), "Request");
         var second = ApiRequest.CreateInCollection(RequestId("request-2"), CollectionId(), "Request");
-        Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
 
-        Assert.NotEqual(first.Value, second.Value);
-        Assert.True(first.Value != second.Value);
+        Assert.NotEqual(first.AssertSuccess(), second.AssertSuccess());
+        Assert.True(first.AssertSuccess() != second.AssertSuccess());
     }
 
     [Fact]
     public void Equality_ComparedWithNull_IsNotEqual()
     {
         var result = ApiRequest.CreateInCollection(RequestId(), CollectionId(), "Request");
-        Assert.True(result.IsSuccess);
         ApiRequest? none = null;
 
-        Assert.False(result.Value.Equals(none));
-        Assert.False(result.Value == none);
+        var value = result.AssertSuccess();
+        Assert.False(value.Equals(none));
+        Assert.False(value == none);
         Assert.True(none == null);
     }
 
     private static ApiRequestId RequestId(string id = "request-1")
     {
         var result = ApiRequestId.Create(id);
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return result.AssertSuccess();
     }
 
     private static ApiCollectionId CollectionId()
     {
         var result = ApiCollectionId.Create("collection-1");
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return result.AssertSuccess();
     }
 
     private static ApiFolderId FolderId()
     {
         var result = ApiFolderId.Create("folder-1");
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        return result.AssertSuccess();
     }
 
     private static HeaderValue Header(string name, string value, bool enabled = true)
     {
         var headerName = HeaderName.Create(name);
-        Assert.True(headerName.IsSuccess);
-        var header = HeaderValue.Create(headerName.Value, new StringWithVars(value), enabled);
-        Assert.True(header.IsSuccess);
-        return header.Value;
+        var header = HeaderValue.Create(headerName.AssertSuccess(), new StringWithVars(value), enabled);
+        return header.AssertSuccess();
     }
 
     private static VarValue Var(string name, string value, bool enabled = true)
     {
         var varName = VarName.Create(name);
-        Assert.True(varName.IsSuccess);
-        var variable = VarValue.Create(varName.Value, new StringWithVars(value), enabled);
-        Assert.True(variable.IsSuccess);
-        return variable.Value;
+        var variable = VarValue.Create(varName.AssertSuccess(), new StringWithVars(value), enabled);
+        return variable.AssertSuccess();
     }
 }

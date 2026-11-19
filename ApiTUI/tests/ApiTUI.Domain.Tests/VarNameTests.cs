@@ -17,8 +17,7 @@ public sealed class VarNameTests
     {
         var result = VarName.Create(value);
 
-        Assert.True(result.IsSuccess);
-        Assert.Equal(value, result.Value.Value);
+        Assert.Equal(value, result.AssertSuccess().Value);
     }
 
     [Theory]
@@ -30,9 +29,9 @@ public sealed class VarNameTests
     {
         var result = VarName.Create(value);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.VarNameEmpty, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.VarNameEmpty, error.Code);
     }
 
     [Theory]
@@ -51,9 +50,9 @@ public sealed class VarNameTests
     {
         var result = VarName.Create(value);
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsReasons.InvalidInput, result.Error.Reason);
-        Assert.Equal(DomainErrorCodes.VarNameInvalidChars, result.Error.Code);
+        var error = result.AssertFailure();
+        Assert.Equal(ErrorsReasons.InvalidInput, error.Reason);
+        Assert.Equal(DomainErrorCodes.VarNameInvalidChars, error.Code);
     }
 
     [Fact]
@@ -61,9 +60,9 @@ public sealed class VarNameTests
     {
         var result = VarName.Create("a$b$c@");
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(DomainErrorCodes.VarNameInvalidChars, result.Error.Code);
-        Assert.Equal("'$', '@'", Assert.Single(result.Error.Args));
+        var error = result.AssertFailure();
+        Assert.Equal(DomainErrorCodes.VarNameInvalidChars, error.Code);
+        Assert.Equal("'$', '@'", Assert.Single(error.Args));
     }
 
     [Fact]
@@ -72,11 +71,9 @@ public sealed class VarNameTests
         var first = VarName.Create("baseUrl");
         var second = VarName.Create("baseUrl");
 
-        Assert.True(first.IsSuccess);
-        Assert.True(second.IsSuccess);
-        Assert.Equal(first.Value, second.Value);
-        Assert.Equal(first.Value.GetHashCode(), second.Value.GetHashCode());
-        Assert.Equal("baseUrl", first.Value.ToString());
+        Assert.Equal(first.AssertSuccess(), second.AssertSuccess());
+        Assert.Equal(first.AssertSuccess().GetHashCode(), second.AssertSuccess().GetHashCode());
+        Assert.Equal("baseUrl", first.AssertSuccess().ToString());
     }
 
     [Fact]
@@ -85,8 +82,6 @@ public sealed class VarNameTests
         var lower = VarName.Create("baseUrl");
         var upper = VarName.Create("BaseUrl");
 
-        Assert.True(lower.IsSuccess);
-        Assert.True(upper.IsSuccess);
-        Assert.NotEqual(lower.Value, upper.Value);
+        Assert.NotEqual(lower.AssertSuccess(), upper.AssertSuccess());
     }
 }

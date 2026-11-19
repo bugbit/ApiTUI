@@ -11,8 +11,7 @@ public sealed class GuidIdGeneratorTests
     {
         var result = _generator.NextApiRequestId();
 
-        Assert.True(result.IsSuccess);
-        Assert.True(Guid.TryParseExact(result.Value.Id, "N", out _));
+        Assert.True(Guid.TryParseExact(result.AssertSuccess().Id, "N", out _));
     }
 
     [Fact]
@@ -20,8 +19,7 @@ public sealed class GuidIdGeneratorTests
     {
         var result = _generator.NextApiCollectionId();
 
-        Assert.True(result.IsSuccess);
-        Assert.True(Guid.TryParseExact(result.Value.Id, "N", out _));
+        Assert.True(Guid.TryParseExact(result.AssertSuccess().Id, "N", out _));
     }
 
     [Fact]
@@ -29,7 +27,7 @@ public sealed class GuidIdGeneratorTests
     {
         var ids = Enumerable.Range(0, 1000)
             .Select(_ => _generator.NextApiRequestId())
-            .Select(result => result.IsSuccess ? result.Value.Id : null)
+            .Select(result => result is ApiRequestId id ? id.Id : null)
             .ToList();
 
         Assert.DoesNotContain(null, ids);
@@ -41,7 +39,7 @@ public sealed class GuidIdGeneratorTests
     {
         var ids = Enumerable.Range(0, 1000)
             .Select(_ => _generator.NextApiCollectionId())
-            .Select(result => result.IsSuccess ? result.Value.Id : null)
+            .Select(result => result is ApiCollectionId id ? id.Id : null)
             .ToList();
 
         Assert.DoesNotContain(null, ids);
