@@ -13,26 +13,38 @@ namespace ApiTUI.Domain.Tests;
 public sealed class ApiTuiAppTests
 {
     [Fact]
-    public async Task Run_SuccessfulResponse_SendsLoginAndPrintsResult()
+    public async Task Run_SuccessfulLogin_SendsTasksWithCapturedToken()
     {
+        const string tasksBody = """[{"id":1,"title":"Demo","isCompleted":false}]""";
         var sender = new FakeHttpSender(new HttpResponseData(200, "OK",
-            [new("Content-Type", "application/json")], """{"token":"abc"}"""));
+            [new("Content-Type", "application/json")], """{"token":"abc"}"""),
+            new HttpResponseData(200, "OK", [new("Content-Type", "application/json")], tasksBody));
 
         var output = await RunAsync(sender, "es");
 
-        var request = Assert.Single(sender.Requests);
+        Assert.Equal(2, sender.Requests.Count);
+        var request = sender.Requests[0];
         Assert.Equal(RequestMethod.Post, request.Method);
         Assert.Equal(new Uri("http://localhost:5080/login"), request.Url);
         Assert.Equal(
             [new KeyValuePair<string, string>("Accept", "application/json"), new("Content-Type", "application/json")],
             request.Headers);
         Assert.Equal("""{"username":"user2","password":"user2"}""", request.Body);
+        var tasks = sender.Requests[1];
+        Assert.Equal(RequestMethod.Get, tasks.Method);
+        Assert.Equal(new Uri("http://localhost:5080/tasks"), tasks.Url);
+        Assert.Equal(
+            [new KeyValuePair<string, string>("Accept", "application/json"), new("Authorization", "Bearer abc")],
+            tasks.Headers);
+        Assert.Null(tasks.Body);
         Assert.Contains("Petición: POST http://localhost:5080/login", output);
         Assert.Contains("Estado: 200 OK", output);
         Assert.Contains("Duración: ", output);
         Assert.Contains("  Content-Type: application/json", output);
         Assert.Contains("""{"token":"abc"}""", output);
-        Assert.EndsWith($"Variable {ApiTuiApp.TokenVarName} = abc{Environment.NewLine}", output);
+        Assert.Contains($"Variable token = Bearer abc{Environment.NewLine}Petición: GET http://localhost:5080/tasks{Environment.NewLine}Estado: 200 OK",
+            output);
+        Assert.EndsWith(tasksBody + Environment.NewLine, output);
     }
 
     [Theory]
@@ -40,11 +52,15 @@ public sealed class ApiTuiAppTests
     [InlineData("en", "Failed to extract token: JSON path 'token' was not found in the response.")]
     public async Task Run_ResponseWithoutToken_PrintsTranslatedVarOutErrorAndEmptyVariable(string language, string error)
     {
-        var sender = new FakeHttpSender(new HttpResponseData(200, "OK", [], "{}"));
+        var sender = new FakeHttpSender(new HttpResponseData(200, "OK", [], "{}"),
+            new HttpResponseData(401, "Unauthorized", [new("WWW-Authenticate", "Bearer")], ""));
 
         var output = await RunAsync(sender, language);
 
-        Assert.EndsWith($"{error}{Environment.NewLine}Variable {ApiTuiApp.TokenVarName} = {Environment.NewLine}", output);
+        Assert.Equal(2, sender.Requests.Count);
+        Assert.Equal(string.Empty, Assert.Single(sender.Requests[1].Headers, header => header.Key == "Authorization").Value);
+        Assert.Contains($"{error}{Environment.NewLine}Variable token = {Environment.NewLine}", output);
+        Assert.Contains("401 Unauthorized", output);
     }
 
     [Fact]
@@ -60,6 +76,22 @@ public sealed class ApiTuiAppTests
         Assert.Contains("NameResolutionError", output);
         Assert.DoesNotContain("Status:", output);
         Assert.DoesNotContain($"Variable {ApiTuiApp.TokenVarName} =", output);
+        Assert.DoesNotContain("/tasks", output);
+        Assert.Single(sender.Requests);
+    }
+
+    [Fact]
+    public async Task Run_TasksFailure_PrintsTranslatedErrorAfterToken()
+    {
+        var error = new Error(ErrorsReasons.HttpFailure, ApplicationErrorCodes.HttpRequestFailed, "ConnectionError");
+        var sender = new FakeHttpSender(new HttpResponseData(200, "OK", [], """{"token":"abc"}"""), error);
+
+        var output = await RunAsync(sender, "en");
+
+        var messages = new Messages("en");
+        var translatedError = messages.Get(UiMessageKeys.RequestFailed, messages.Format(error));
+        var newline = Environment.NewLine;
+        Assert.EndsWith($"Variable token = Bearer abc{newline}Request: GET {ApiTuiApp.TasksUrl}{newline}{translatedError}{newline}", output);
     }
 
     [Fact]
@@ -97,17 +129,18 @@ public sealed class ApiTuiAppTests
         return new ApiTuiApp(useCase, new GuidIdGenerator(), new Messages(language), store);
     }
 
-    private sealed class FakeHttpSender(Result<HttpResponseData> result) : IHttpSender
+    private sealed class FakeHttpSender(params Result<HttpResponseData>[] results) : IHttpSender
     {
-        private readonly Result<HttpResponseData> _result = result;
+        private readonly Result<HttpResponseData>[] _results = results;
 
         public List<HttpRequestData> Requests { get; } = [];
 
         public Task<Result<HttpResponseData>> SendAsync(HttpRequestData request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var result = _results[Math.Min(Requests.Count, _results.Length - 1)];
             Requests.Add(request);
-            return Task.FromResult(_result);
+            return Task.FromResult(result);
         }
     }
 }

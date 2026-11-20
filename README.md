@@ -4,7 +4,7 @@ Cliente HTTP interactivo para terminal, desarrollado en .NET con [Terminal.Gui](
 
 Las colecciones y peticiones se organizarán en una jerarquía de carpetas y se guardarán como ficheros JSON. El proyecto está planteado para publicarse como ejecutable nativo mediante Native AOT y como imagen Docker.
 
-> **Estado del proyecto:** el dominio modela entornos, colecciones con variables, carpetas anidadas con sus propias variables y peticiones con nombres válidos para el sistema de archivos. La consola .NET 11 arranca con Generic Host, hace como prueba provisional un `POST /login` a la TodoApi local en `http://localhost:5080` con el caso de uso `SendApiRequestUseCase` y el adaptador con `HttpClient`, muestra por consola estado, duración, cabeceras y cuerpo, y termina. El envío resuelve variables de colección, entorno y carpetas desde un almacén en memoria. La TUI y la persistencia en disco siguen pendientes.
+> **Estado del proyecto:** el dominio modela entornos, colecciones con variables, carpetas anidadas con sus propias variables y peticiones con nombres válidos para el sistema de archivos. La consola .NET 11 arranca con Generic Host y hace una prueba de login y consulta de tareas en la TodoApi local con `SendApiRequestUseCase` y el adaptador `HttpClient`. El envío resuelve variables de colección, entorno y carpetas desde un almacén en memoria. La TUI y la persistencia en disco siguen pendientes.
 
 El envío admite cancelación y un límite de 100 segundos que cubre la respuesta completa. Las variables siguen la misma precedencia que [Bruno](https://docs.usebruno.com/variables/overview): la colección aporta los valores por defecto, el entorno seleccionado los sustituye y las carpetas aplican los suyos desde la raíz hasta la carpeta de la petición, que es la que más prioridad tiene. Las variables deshabilitadas se ignoran y un marcador válido sin valor genera un error. Las cabeceras deshabilitadas se ignoran y los valores con CR, LF o NUL se rechazan antes de enviar.
 
@@ -94,7 +94,7 @@ dotnet build ApiTUI/ApiTUI.slnx --configuration Release
 dotnet run --project ApiTUI/ApiTUI
 ```
 
-Antes de ejecutar la consola, arranca TodoApi en otro terminal con `dotnet run --project ApiTUI/samples/TodoApi`. La consola hace un `POST` a `http://localhost:5080/login` y muestra la respuesta con el token. Si TodoApi está parada, muestra el error de conexión traducido. Usa `--Language en` para ver la salida en inglés.
+Antes de ejecutar la consola, arranca TodoApi en otro terminal con `dotnet run --project ApiTUI/samples/TodoApi`. La consola hace `POST /login` en `http://localhost:5080`, guarda `Bearer <token>` en la variable de entorno `token` mediante `VarsOut` y muestra el valor. Después hace `GET /tasks` con `Authorization: {{token}}` y muestra la lista de tareas. Si TodoApi está parada, muestra el error de conexión traducido. Usa `--Language en` para ver la salida en inglés.
 
 ### Publicar como Native AOT
 

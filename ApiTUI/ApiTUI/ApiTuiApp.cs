@@ -8,14 +8,15 @@ using ApiTUI.Localization;
 namespace ApiTUI;
 
 // Prueba provisional por consola del caso de uso de envío.
-// Hace login contra la TodoApi local de ApiTUI/samples/TodoApi, que debe estar arrancada.
+// Hace login y consulta las tareas en la TodoApi local de ApiTUI/samples/TodoApi.
 public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator idGenerator, Messages messages, InMemoryApiStore store)
 {
     public const string BaseUrl = "http://localhost:5080";
     public const string LoginUrl = BaseUrl + "/login";
+    public const string TasksUrl = BaseUrl + "/tasks";
     public const string LoginBody = """{"username":"user2","password":"user2"}""";
     public const string TokenVarName = "token";
-    public const string TokenVarOut = "{{response.json.token}}";
+    public const string TokenVarOut = "Bearer {{response.json.token}}";
 
     private readonly SendApiRequestUseCase _sendApiRequest = sendApiRequest;
     private readonly IIdGenerator _idGenerator = idGenerator;
@@ -26,16 +27,16 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var sampleResult = PrepareSampleLogin();
+        var sampleResult = PrepareSample();
         if (sampleResult is Error requestError)
         {
             WriteError(requestError);
             return;
         }
 
-        var (request, environmentId) = (SampleLogin)sampleResult.Value;
-        Console.WriteLine(_messages.Get(UiMessageKeys.Request, $"{request.Method.ToString().ToUpperInvariant()} {LoginUrl}"));
-        var result = await _sendApiRequest.ExecuteAsync(request, environmentId, cancellationToken);
+        var (login, tasks, environmentId) = (Sample)sampleResult.Value;
+        Console.WriteLine(_messages.Get(UiMessageKeys.Request, $"POST {LoginUrl}"));
+        var result = await _sendApiRequest.ExecuteAsync(login, environmentId, cancellationToken);
         if (result is Error resultError)
         {
             WriteError(resultError);
@@ -43,16 +44,7 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
         }
 
         var response = (ApiResponse)result.Value;
-        Console.WriteLine(_messages.Get(UiMessageKeys.ResponseStatus, $"{response.StatusCode} {response.ReasonPhrase}".TrimEnd()));
-        Console.WriteLine(_messages.Get(UiMessageKeys.ResponseDuration, (long)response.Duration.TotalMilliseconds));
-        Console.WriteLine(_messages.Get(UiMessageKeys.ResponseHeaders));
-        foreach (var (name, value) in response.Headers)
-        {
-            Console.WriteLine($"  {name}: {value}");
-        }
-
-        Console.WriteLine(_messages.Get(UiMessageKeys.ResponseBody));
-        Console.WriteLine(response.Body);
+        WriteResponse(response);
 
         foreach (var (name, error) in response.VarOutErrors)
         {
@@ -62,14 +54,30 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
         var environment = await _store.FindAsync(environmentId, cancellationToken);
         var token = environment?.Variables.FirstOrDefault(variable => variable.Name.Value == TokenVarName);
         Console.WriteLine(_messages.Get(UiMessageKeys.VariableValue, TokenVarName, token?.Value.Text ?? string.Empty));
+
+        Console.WriteLine(_messages.Get(UiMessageKeys.Request, $"GET {TasksUrl}"));
+        var tasksResult = await _sendApiRequest.ExecuteAsync(tasks, environmentId, cancellationToken);
+        if (tasksResult is Error tasksError)
+        {
+            WriteError(tasksError);
+            return;
+        }
+
+        WriteResponse((ApiResponse)tasksResult.Value);
     }
 
-    private Result<SampleLogin> PrepareSampleLogin()
+    private Result<Sample> PrepareSample()
     {
-        var requestId = _idGenerator.NextApiRequestId();
-        if (requestId is Error requestIdError)
+        var loginId = _idGenerator.NextApiRequestId();
+        if (loginId is Error loginIdError)
         {
-            return requestIdError;
+            return loginIdError;
+        }
+
+        var tasksId = _idGenerator.NextApiRequestId();
+        if (tasksId is Error tasksIdError)
+        {
+            return tasksIdError;
         }
 
         var collectionId = _idGenerator.NextApiCollectionId();
@@ -139,29 +147,58 @@ public sealed class ApiTuiApp(SendApiRequestUseCase sendApiRequest, IIdGenerator
             return contentTypeError;
         }
 
-        var request = ApiRequest.CreateInCollection((ApiRequestId)requestId.Value, (ApiCollectionId)collectionId.Value, "Login",
+        var login = ApiRequest.CreateInCollection((ApiRequestId)loginId.Value, (ApiCollectionId)collectionId.Value, "Login",
             RequestMethod.Post, new StringWithVars("{{url}}/login"), [(HeaderValue)accept.Value, (HeaderValue)contentType.Value],
             new StringWithVars(LoginBody), varsOut: [(VarValue)tokenVarOut.Value]);
-        if (request is Error requestError)
+        if (login is Error loginError)
         {
-            return requestError;
+            return loginError;
+        }
+
+        var authorization = CreateHeader("Authorization", "{{token}}");
+        if (authorization is Error authorizationError)
+        {
+            return authorizationError;
+        }
+
+        var tasks = ApiRequest.CreateInCollection((ApiRequestId)tasksId.Value, (ApiCollectionId)collectionId.Value, "Tasks",
+            RequestMethod.Get, new StringWithVars("{{url}}/tasks"), [(HeaderValue)accept.Value, (HeaderValue)authorization.Value]);
+        if (tasks is Error tasksError)
+        {
+            return tasksError;
         }
 
         _store.Add((ApiCollection)collection.Value);
         _store.Add((ApiEnvironment)environment.Value);
-        return new SampleLogin((ApiRequest)request.Value, (ApiEnvironmentId)environmentId.Value);
+        return new Sample((ApiRequest)login.Value, (ApiRequest)tasks.Value, (ApiEnvironmentId)environmentId.Value);
     }
 
-    private static Result<HeaderValue> CreateJsonHeader(string name)
+    private static Result<HeaderValue> CreateJsonHeader(string name) => CreateHeader(name, "application/json");
+
+    private static Result<HeaderValue> CreateHeader(string name, string value)
     {
         return HeaderName.Create(name) switch
         {
             Error error => error,
-            HeaderName headerName => HeaderValue.Create(headerName, new StringWithVars("application/json")),
+            HeaderName headerName => HeaderValue.Create(headerName, new StringWithVars(value)),
         };
+    }
+
+    private void WriteResponse(ApiResponse response)
+    {
+        Console.WriteLine(_messages.Get(UiMessageKeys.ResponseStatus, $"{response.StatusCode} {response.ReasonPhrase}".TrimEnd()));
+        Console.WriteLine(_messages.Get(UiMessageKeys.ResponseDuration, (long)response.Duration.TotalMilliseconds));
+        Console.WriteLine(_messages.Get(UiMessageKeys.ResponseHeaders));
+        foreach (var (name, value) in response.Headers)
+        {
+            Console.WriteLine($"  {name}: {value}");
+        }
+
+        Console.WriteLine(_messages.Get(UiMessageKeys.ResponseBody));
+        Console.WriteLine(response.Body);
     }
 
     private void WriteError(Error error) => Console.WriteLine(_messages.Get(UiMessageKeys.RequestFailed, _messages.Format(error)));
 
-    private sealed record SampleLogin(ApiRequest Request, ApiEnvironmentId EnvironmentId);
+    private sealed record Sample(ApiRequest Login, ApiRequest Tasks, ApiEnvironmentId EnvironmentId);
 }

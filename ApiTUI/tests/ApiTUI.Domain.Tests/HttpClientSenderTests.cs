@@ -100,6 +100,22 @@ public sealed class HttpClientSenderTests
     }
 
     [Fact]
+    public async Task Send_EmptyAuthorization_PassesHeaderToTransportAndReturnsUnauthorized()
+    {
+        var handler = new FakeHandler((message, cancellationToken) =>
+        {
+            Assert.Equal(string.Empty, Assert.Single(message.Headers.NonValidated["Authorization"]));
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
+        });
+        using var client = Client(handler);
+        var request = Request(RequestMethod.Get, headers: [new("Authorization", string.Empty)]);
+
+        var result = await Sender(client).SendAsync(request, CancellationToken.None);
+
+        Assert.Equal(401, result.AssertSuccess().StatusCode);
+    }
+
+    [Fact]
     public async Task Send_ConnectionFailure_ReturnsHttpFailure()
     {
         var handler = new FakeHandler((message, cancellationToken) => Task.FromException<HttpResponseMessage>(
